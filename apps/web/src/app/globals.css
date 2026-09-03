@@ -1,0 +1,33 @@
+/*
+ * The app-level sheet. Component styling lives inline in @sporim/ui (see its tokens.ts
+ * for why); this file carries only what a style attribute cannot express.
+ */
+
+@import './fonts.css';
+@import '@sporim/ui/styles.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--sporim-canvas);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100dvh;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--sporim-accent);
+  color: var(--sporim-on-accent);
+}
+
+/* Money and countdowns must not reflow while digits change. */
+.sporim-tnum {
+  font-variant-numeric: tabular-nums;
+}

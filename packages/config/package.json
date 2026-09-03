@@ -1,0 +1,22 @@
+{
+  "name": "@sporim/config",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Shared tsconfig, eslint, prettier and tailwind presets for the SPORIM monorepo.",
+  "exports": {
+    "./tsconfig/base.json": "./tsconfig/base.json",
+    "./tsconfig/node-lib.json": "./tsconfig/node-lib.json",
+    "./tsconfig/react-lib.json": "./tsconfig/react-lib.json",
+    "./eslint/base.js": "./eslint/base.js",
+    "./eslint/pure-package.js": "./eslint/pure-package.js",
+    "./eslint/no-server-db.js": "./eslint/no-server-db.js",
+    "./prettier.config.js": "./prettier.config.js"
+  },
+  "peerDependencies": {
+    "eslint": "^9.39.5",
+    "prettier": "^3.0.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.46.0"
+  }
+}

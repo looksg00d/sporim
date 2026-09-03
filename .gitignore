@@ -1,0 +1,57 @@
+# Instagram session cookies — never commit
+cookies.txt
+*.cookies.txt
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# Large media (keep the reel out of git; it's in reference/ locally)
+reference/*.mp4
+
+# Node / monorepo
+node_modules/
+.pnpm-store/
+.turbo/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Next.js
+.next/
+.next-e2e/
+.next-verify/
+out/
+next-env.d.ts
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+
+# Anchor / Rust (Phase 1)
+target/
+.anchor/
+test-ledger/
+
+# Env & secrets — .env.example is the only committed env file
+.env
+.env.*
+!.env.example
+*.keypair.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Screenshots taken during development
+.shots/
+
+# Incremental TS build info
+*.tsbuildinfo

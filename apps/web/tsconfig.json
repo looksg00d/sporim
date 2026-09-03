@@ -1,0 +1,29 @@
+{
+  "extends": "@sporim/config/tsconfig/react-lib.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "preserve",
+    "allowJs": true,
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "types": ["vitest/globals"]
+  },
+  "include": [
+    ".next/types/**/*.ts",
+    "e2e",
+    "next-env.d.ts",
+    "next.config.ts",
+    "playwright.config.ts",
+    "src",
+    "vitest.config.ts",
+    ".next-e2e/types/**/*.ts"
+  ],
+  "exclude": ["node_modules"]
+}

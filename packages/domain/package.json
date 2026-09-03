@@ -1,0 +1,27 @@
+{
+  "name": "@sporim/domain",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Pure domain logic for SPORIM: money, settlement, schemas, state machine, copy. No React, no Node, no DOM.",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@sporim/config": "workspace:*",
+    "@sporim/testing": "workspace:*",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.7"
+  }
+}

@@ -1,0 +1,125 @@
+/*
+ * Only what inline styles cannot express: custom properties for app-level CSS,
+ * hover/focus states, keyframes, and the reduced-motion opt-out.
+ * Every value here mirrors tokens.ts — change both together.
+ */
+
+:root {
+  --sporim-canvas: #0f1014;
+  --sporim-surface: #16181e;
+  --sporim-surface-raised: #1d2027;
+  --sporim-hairline: #2a2d36;
+  --sporim-hairline-strong: #3a3e49;
+  --sporim-ink: #f2f1ec;
+  --sporim-ink-muted: #c6c6cc;
+  --sporim-ink-secondary: #9a9aa3;
+  --sporim-ink-faint: #6f6f78;
+  --sporim-accent: #c9ff3f;
+  --sporim-accent-hover: #e4ff8a;
+  --sporim-accent-dim: #8fb82a;
+  --sporim-on-accent: #0f1014;
+  --sporim-loss: #ff5c4d;
+  --sporim-focus: #7ee0ff;
+  --sporim-font-display: Unbounded, 'Arial Black', Impact, sans-serif;
+  --sporim-font-mono: 'IBM Plex Mono', ui-monospace, 'Courier New', monospace;
+
+  color-scheme: dark;
+}
+
+/* There is no light mode — the dark canvas is the product. */
+body {
+  margin: 0;
+  background: var(--sporim-canvas);
+  color: var(--sporim-ink);
+  font-family: var(--sporim-font-mono);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- interaction states (inline styles cannot do these) --- */
+
+.sporim-primary:hover:not(:disabled) {
+  background: var(--sporim-accent-hover);
+}
+.sporim-primary:active:not(:disabled) {
+  background: var(--sporim-accent-dim);
+}
+.sporim-primary:disabled {
+  background: var(--sporim-accent-dim);
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.sporim-secondary:hover:not(:disabled) {
+  border-color: var(--sporim-ink-secondary);
+}
+
+.sporim-ghost:hover:not(:disabled) {
+  color: var(--sporim-ink);
+}
+
+.sporim-link:hover {
+  color: var(--sporim-accent-hover);
+}
+
+.sporim-focusable:focus-visible {
+  outline: 2px solid var(--sporim-focus);
+  outline-offset: 3px;
+}
+
+.sporim-input:focus-visible {
+  outline: none;
+  border-color: var(--sporim-accent);
+}
+
+/* --- motion: one orchestrated reveal per screen --- */
+
+@keyframes sporim-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes sporim-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.sporim-rise {
+  animation: sporim-rise 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.sporim-rise-delayed {
+  animation: sporim-rise 800ms 150ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.sporim-pop {
+  animation: sporim-pop 600ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* The hold-to-lock fill, driven by a CSS variable the component sets. */
+.sporim-hold-fill {
+  transition: width 60ms linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sporim-rise,
+  .sporim-rise-delayed,
+  .sporim-pop {
+    animation: none;
+  }
+  .sporim-hold-fill {
+    transition: none;
+  }
+}

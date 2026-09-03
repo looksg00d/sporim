@@ -1,0 +1,7 @@
+{
+  "extends": "@sporim/config/tsconfig/react-lib.json",
+  "compilerOptions": {
+    "types": ["vitest/globals"]
+  },
+  "include": ["src"]
+}

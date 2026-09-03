@@ -1,0 +1,13 @@
+# Build output and generated files — Prettier has no business rewriting these.
+**/node_modules/**
+**/.next/**
+**/.next-e2e/**
+**/dist/**
+**/coverage/**
+**/playwright-report/**
+**/test-results/**
+**/next-env.d.ts
+pnpm-lock.yaml
+data/**
+reference/**
+apps/web/src/app/fonts.css

@@ -1,0 +1,121 @@
+import Link from 'next/link';
+import { TRUST_COPY, usdc } from '@sporim/domain';
+import {
+  accentGlow,
+  BetCard,
+  color,
+  DevnetBanner,
+  PillLink,
+  ProofChips,
+  space,
+  Stamp,
+  standardRows,
+  typeStyle,
+} from '@sporim/ui';
+import { env, isMockChain } from '@/lib/env';
+
+/*
+ * Scaffold home (T0.12). The real landing is T4.5 — this exists so the wiring is visible:
+ * self-hosted fonts, design-system tokens, the devnet banner, and a BetCard rendered from
+ * domain values rather than hand-typed numbers.
+ */
+
+export default function HomePage() {
+  const rows = standardRows({
+    pot: usdc(40),
+    deadlineLabel: 'Sun 23:59',
+    decidedBy: 'Both of you, then Dima',
+    escrowLabel: isMockChain ? 'Simulated' : 'Devnet escrow',
+  });
+
+  return (
+    <main style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
+      <DevnetBanner />
+
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: space.xxl,
+          flexGrow: 1,
+          padding: `${space.xxl}px ${space.lg}px`,
+          backgroundImage: accentGlow(50, 18),
+        }}
+      >
+        <span style={{ ...typeStyle('wordmark'), color: color.ink }}>SPORIM</span>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: space.md, maxWidth: 620 }}>
+          <span
+            style={{ ...typeStyle('labelCaps'), color: color.accent, textTransform: 'uppercase' }}
+          >
+            {TRUST_COPY.noBackingOut}
+          </span>
+          <h1
+            style={{ margin: 0, ...typeStyle('displayLg'), color: color.ink, textWrap: 'balance' }}
+          >
+            Put money on it.
+          </h1>
+          <p
+            style={{
+              margin: 0,
+              ...typeStyle('bodyLg'),
+              color: color.inkSecondary,
+              textWrap: 'pretty',
+            }}
+          >
+            An argument with a friend ends one of two ways: someone quietly forgets it, or someone
+            pays. Both sides lock USDC in escrow — the winner takes it.
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: space.sm }}>
+          <PillLink href="/new/terms">Start one</PillLink>
+          <PillLink href="/how-it-works" variant="secondary">
+            How it works
+          </PillLink>
+        </div>
+
+        <div
+          style={{ display: 'flex', flexWrap: 'wrap', gap: space.xxl, alignItems: 'flex-start' }}
+        >
+          <div
+            style={{
+              position: 'relative',
+              flexGrow: 1,
+              flexBasis: 320,
+              maxWidth: 440,
+              paddingBottom: 46,
+            }}
+          >
+            <BetCard
+              id="0F2A"
+              state="active"
+              terms="Ты не пробежишь 10 км до воскресенья."
+              sides={[
+                { label: 'You', value: '20.00 USDC', tone: 'mine' },
+                { label: 'Dima', value: '20.00 USDC' },
+              ]}
+              rows={rows}
+            />
+            <Stamp style={{ position: 'absolute', right: -6, bottom: 0, zIndex: 1 }}>
+              {TRUST_COPY.noBackingOut}
+            </Stamp>
+          </div>
+
+          <div style={{ flexGrow: 1, flexBasis: 260, maxWidth: 380 }}>
+            <ProofChips />
+          </div>
+        </div>
+
+        <div style={{ flexGrow: 1 }} />
+
+        <p style={{ margin: 0, ...typeStyle('micro'), color: color.inkFaint }}>
+          {env.appEnv} · chain: {env.chainMode} · fee {env.feeBps / 100}% ·{' '}
+          <Link href="/legal" style={{ color: color.inkSecondary }}>
+            Terms
+          </Link>
+        </p>
+      </div>
+    </main>
+  );
+}
