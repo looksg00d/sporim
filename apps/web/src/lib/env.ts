@@ -28,10 +28,27 @@ export class EnvError extends Error {
   }
 }
 
+/**
+ * Where this deployment actually lives.
+ *
+ * Every preview build gets a fresh hostname, so pinning `NEXT_PUBLIC_APP_URL` to one value
+ * would make every preview advertise the production URL — and `metadataBase` feeds the share
+ * card, which is the whole growth loop. Vercel injects `VERCEL_URL` (host only, no scheme)
+ * per deployment, so it is the right default there; an explicit value still wins, because
+ * production runs on a domain Vercel does not know about.
+ */
+function resolveAppUrl(source: Record<string, string | undefined>): string {
+  const explicit = source.NEXT_PUBLIC_APP_URL?.trim();
+  if (explicit) return explicit;
+  const vercel = (source.NEXT_PUBLIC_VERCEL_URL ?? source.VERCEL_URL)?.trim();
+  if (vercel) return vercel.startsWith('http') ? vercel : `https://${vercel}`;
+  return 'http://localhost:3000';
+}
+
 /** Exported so tests can drive the same parse from an explicit record. */
 export function parsePublicEnv(source: Record<string, string | undefined>): PublicEnv {
   const parsed = publicSchema.safeParse({
-    appUrl: source.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
+    appUrl: resolveAppUrl(source),
     appEnv: source.NEXT_PUBLIC_APP_ENV ?? 'local',
     chainMode: source.NEXT_PUBLIC_CHAIN_MODE ?? 'mock',
     solanaCluster: source.NEXT_PUBLIC_SOLANA_CLUSTER ?? 'devnet',
@@ -49,6 +66,8 @@ export function parsePublicEnv(source: Record<string, string | undefined>): Publ
  */
 export const env: PublicEnv = parsePublicEnv({
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+  // Written out literally like the rest: Next only inlines what it can see whole.
+  NEXT_PUBLIC_VERCEL_URL: process.env.NEXT_PUBLIC_VERCEL_URL,
   NEXT_PUBLIC_APP_ENV: process.env.NEXT_PUBLIC_APP_ENV,
   NEXT_PUBLIC_CHAIN_MODE: process.env.NEXT_PUBLIC_CHAIN_MODE,
   NEXT_PUBLIC_SOLANA_CLUSTER: process.env.NEXT_PUBLIC_SOLANA_CLUSTER,

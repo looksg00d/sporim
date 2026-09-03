@@ -79,3 +79,35 @@ describe('parseServerEnv', () => {
     );
   });
 });
+
+describe('resolving the app URL', () => {
+  it('prefers an explicit value — production runs on a domain Vercel does not know', () => {
+    expect(
+      parsePublicEnv({
+        ...valid,
+        NEXT_PUBLIC_APP_URL: 'https://sporim.app',
+        VERCEL_URL: 'x.vercel.app',
+      }).appUrl,
+    ).toBe('https://sporim.app');
+  });
+
+  it('falls back to the deployment host so every preview advertises itself', () => {
+    const { NEXT_PUBLIC_APP_URL: _omitted, ...rest } = valid;
+    expect(
+      parsePublicEnv({ ...rest, NEXT_PUBLIC_VERCEL_URL: 'sporim-abc123.vercel.app' }).appUrl,
+    ).toBe('https://sporim-abc123.vercel.app');
+  });
+
+  it('adds the scheme Vercel leaves off, and keeps one that is already there', () => {
+    const { NEXT_PUBLIC_APP_URL: _a, ...rest } = valid;
+    expect(parsePublicEnv({ ...rest, VERCEL_URL: 'https://already.example' }).appUrl).toBe(
+      'https://already.example',
+    );
+  });
+
+  it('treats an empty string as absent rather than parsing it as a URL', () => {
+    expect(parsePublicEnv({ ...valid, NEXT_PUBLIC_APP_URL: '   ' }).appUrl).toBe(
+      'http://localhost:3000',
+    );
+  });
+});
