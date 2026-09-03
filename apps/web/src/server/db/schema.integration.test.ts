@@ -130,6 +130,10 @@ describeDb('schema', () => {
 
   it('refuses a confirmation with no account behind it', async () => {
     const bet = toBetInsert(fixtureBet({ creatorId }), creatorId);
+    // Two independent guards now refuse this row, and the trigger from `0006` gets there
+    // first: it asks *who may consent* before the constraint gets to ask *what a consent must
+    // contain*. Either refusal satisfies the property under test — a confirmation with nobody
+    // behind it never lands. The constraint itself is asserted to still exist below.
     await expect(
       owner.begin(async (tx) => {
         await tx`insert into bets ${tx(bet)}`;
@@ -138,7 +142,14 @@ describeDb('schema', () => {
           values (${bet.id}, 'referee', 'anya', now())
         `;
       }),
-    ).rejects.toThrow(/participants_confirmed_needs_user/);
+    ).rejects.toThrow(/participants_confirmed_needs_user|only the holder of the invitation/);
+  });
+
+  it('still carries the constraint that a confirmation names an account', async () => {
+    const [row] = await owner`
+      select conname from pg_constraint
+      where conrelid = 'participants'::regclass and conname = 'participants_confirmed_needs_user'`;
+    expect(row?.conname).toBe('participants_confirmed_needs_user');
   });
 
   /** Runs the statement and expects Postgres to refuse it; the failure rolls the fixture back. */

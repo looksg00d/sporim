@@ -190,4 +190,36 @@ describeDb('row-level security', () => {
     const result = await getBet(didStranger, theBet().id);
     expect(result).toEqual({ ok: false, error: { code: 'NOT_FOUND', what: 'bet' } });
   });
+
+  /**
+   * A referee only decides a bet if they confirmed the role, so writing `confirmed_at` is the
+   * whole game. `0005` froze it against UPDATE — but the trigger fired only on UPDATE, and the
+   * INSERT policy ends in `OR app_is_participant(bet_id)`, so the creator could simply insert
+   * the referee row already confirmed. A referee confirmed that way was never asked, and their
+   * silence then upholds the creator's own claim instead of refunding.
+   *
+   * Closed in `0006` by putting the same guard on both doors. This test is here because the
+   * hole survived one round of "fixed" already.
+   */
+  it('refuses a referee row that arrives already confirmed', async () => {
+    expect(bet).toBeDefined();
+    await expect(
+      withUser(didAlice, async (tx) => {
+        await tx`insert into participants (bet_id, role, user_id, display_name, confirmed_at)
+                 values (${bet!.id}, 'referee', ${alice.id}, 'accomplice', now())`;
+      }),
+    ).rejects.toThrow(/only the holder of the invitation/i);
+  });
+
+  it('still lets the creator name an unconfirmed referee', async () => {
+    expect(bet).toBeDefined();
+    await withUser(didAlice, async (tx) => {
+      await tx`insert into participants (bet_id, role, display_name)
+               values (${bet!.id}, 'referee', 'Kolya')`;
+    });
+    const [row] = await owner`
+      select confirmed_at from participants where bet_id = ${bet!.id} and role = 'referee'`;
+    expect(row?.confirmed_at).toBeNull();
+    await owner`delete from participants where bet_id = ${bet!.id} and role = 'referee'`;
+  });
 });
