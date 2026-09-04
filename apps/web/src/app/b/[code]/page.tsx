@@ -19,7 +19,6 @@ import {
   BetCard,
   PayoutBreakdown,
   PillButton,
-  StateChip,
   color,
   radius,
   space,
@@ -28,6 +27,7 @@ import {
 } from '@sporim/ui';
 import { SignInWall } from '@/features/auth/SignInWall';
 import { isMockChain } from '@/lib/env';
+import { betUrl } from '@/features/bet/links';
 import { whatHappensNext } from '@/features/bet/next-step';
 import { formatDeadlineShort, nowSeconds } from '@/lib/time';
 import {
@@ -277,7 +277,7 @@ function Actions({
               userSelect: 'all',
             }}
           >
-            {`/b/${code}`}
+            {betUrl(code)}
           </code>
           <span style={{ ...typeStyle('micro'), color: color.inkFaint }}>
             {TRUST_COPY.linkWarning}
@@ -364,11 +364,10 @@ export default async function BetPage({ params }: { params: Promise<{ code: stri
 
   return (
     <Shell>
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ ...typeStyle('labelCaps'), color: color.accent }}>BET #{code}</span>
-        <StateChip state={bet.state} />
-      </header>
-
+      {/*
+       * No heading above the card. The card already carries the code and the state, and a
+       * page that prints both twice reads as a mistake — which it was.
+       */}
       <BetCard
         id={code}
         state={bet.state}
