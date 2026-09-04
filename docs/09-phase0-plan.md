@@ -6,6 +6,12 @@
 >
 > - **`DESIGN.md` at the repo root supersedes §2.1 `packages/ui` tokens.** The planner assumed the reel's lavender palette; the chosen direction is "Acid Arena" (Option B on the design canvas). Build `packages/ui` strictly from `DESIGN.md`.
 > - Open questions Q1–Q5 at the end are for the product owner; recommended answers are inline in _italics_.
+> - **The dispute bond in this document no longer exists (2026-09-04).** Every mention of
+>   `dispute_bond`, `bond_bps`, `calculateDisputeBond` or a vault holding
+>   `stakes + dispute_bond` is superseded: disagreeing is free, the vault holds the stakes and
+>   nothing else, and a silent referee refunds rather than upholding the claim (`settleUnrefereed`
+>   is gone). Read `docs/DECISIONS.md` under 2026-09-04 before implementing §2.5, the instruction
+>   table, or the invariants — the on-chain design in here still carries the old money rules.
 >
 > Read as: **§1 PRD** (what and why) → **§2 Architecture** (how it is built) → **§3 Task list** (what to do, in order) → **Risks** → **Open questions**.
 >
