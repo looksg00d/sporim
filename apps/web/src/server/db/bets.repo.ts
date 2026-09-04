@@ -301,6 +301,12 @@ export async function getBet(privyDid: string, betId: BetId): Promise<Result<Bet
   });
 }
 
+/** A bet and who the caller is on it. The role is never recomputed by the caller. */
+export interface BetView {
+  readonly bet: Bet;
+  readonly role: ViewerRole;
+}
+
 /**
  * The same bet, reached by the string that gets shared rather than by its uuid.
  *
@@ -308,11 +314,16 @@ export async function getBet(privyDid: string, betId: BetId): Promise<Result<Bet
  * capability to read one, and the policies answer to `app.user_id` either way. Somebody who
  * merely holds the link gets NOT_FOUND here — taking the other side is a different flow with
  * an authorization of its own, still unwritten (0003).
+ *
+ * The role travels back with the bet because it was computed here to decide whether to answer
+ * at all, and because the alternative is every page resolving it again from an identity it
+ * would have to be handed separately. One derivation, one answer: a screen cannot disagree
+ * with the check that let it render.
  */
 export async function getBetByShortCode(
   privyDid: string,
   shortCode: ShortCode,
-): Promise<Result<Bet, RepoError>> {
+): Promise<Result<BetView, RepoError>> {
   return withUser(privyDid, async (sql) => {
     const user = await requireCurrentUser(sql, privyDid);
     if (!user.ok) return user;
@@ -326,7 +337,7 @@ export async function getBetByShortCode(
 
     const role = resolveViewerRole(bet, { userId: user.value.id, wallet: user.value.wallet });
     if (role === 'observer') return err(notFound('bet'));
-    return ok(bet);
+    return ok({ bet, role });
   });
 }
 

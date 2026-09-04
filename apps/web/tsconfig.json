@@ -16,7 +16,6 @@
     "types": ["vitest/globals"]
   },
   "include": [
-    ".next/types/**/*.ts",
     "e2e",
     "next-env.d.ts",
     "next.config.ts",
@@ -25,5 +24,17 @@
     "vitest.config.ts",
     ".next-e2e/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  // Both generated type directories are excluded, and `exclude` is what makes it stick —
+  // Next re-adds the active one to `include` on every build.
+  //
+  // The e2e run builds into `.next-e2e` so it cannot fight a running `pnpm dev` for `.next`
+  // on Windows. The cost is that both directories exist, each holding its own generated
+  // `routes.ts`, and TypeScript treats the two as different nominal types: the moment one is
+  // stale — a route added since the last ordinary build — the other's validator fails to
+  // compile against it. That error says nothing about our code.
+  //
+  // What is lost: `pnpm typecheck` no longer checks page and layout props against Next's
+  // generated route union. Everything those files actually do is still checked, and the
+  // route shape is exercised by the e2e suite, which navigates to them for real.
+  "exclude": ["node_modules", ".next", ".next-e2e"]
 }
