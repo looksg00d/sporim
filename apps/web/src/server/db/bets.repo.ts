@@ -1,6 +1,4 @@
 import {
-  addUsdc,
-  calculateDisputeBond,
   canPerform,
   CLAIM_WINDOW_SECONDS,
   err,
@@ -15,9 +13,12 @@ import {
   type Claim,
   type Dispute,
   type Outcome,
+  type HexHash,
   type Party,
   type Result,
   type Signature,
+  type ShortCode,
+  type UserId,
   type ViewerRole,
 } from '@sporim/domain';
 import { nowSeconds as currentSeconds } from '@/lib/time';
@@ -36,7 +37,7 @@ import {
   type ParticipantRole,
 } from './bet-row';
 import { forbidden, notFound, type RepoError } from './errors';
-import { newRefereeToken } from './referee-token';
+import { newRefereeToken } from './link-secrets';
 import { requireCurrentUser, type UserRecord } from './users.repo';
 
 /**
@@ -62,7 +63,6 @@ function txColumnFor(action: BetAction): 'accept_tx' | 'settle_tx' | null {
       return 'accept_tx';
     case 'confirmClaim':
     case 'settleUncontested':
-    case 'settleUnrefereed':
     case 'refereeResolve':
     case 'refundExpired':
       return 'settle_tx';
@@ -174,6 +174,25 @@ export interface CreateBetInput {
   readonly signature?: Signature;
 }
 
+/**
+ * The bet this creator already has for this commitment, if any.
+ *
+ * Only ever asked after an insert declined to happen, so the row is by definition the
+ * caller's own and `bets_select_participant` lets them read it. A stranger asking the same
+ * question sees nothing, which is the same answer they get everywhere else.
+ */
+async function loadBetByCommitment(
+  sql: DbTransaction,
+  creatorId: UserId,
+  termsHash: HexHash,
+): Promise<Bet | null> {
+  const rows = await sql<RawRow[]>`
+    select id from bets where creator_id = ${creatorId} and terms_hash = ${termsHash}
+  `;
+  const id = rows[0]?.id;
+  return id === undefined ? null : loadBet(sql, id as BetId);
+}
+
 export async function createBet(
   privyDid: string,
   input: CreateBetInput,
@@ -203,7 +222,22 @@ export async function createBet(
 
     const bet: Bet = { ...input.bet, creator, referee };
 
-    await sql`insert into bets ${sql(toBetInsert(bet, user.value.id))}`;
+    // Idempotent by the commitment hash (`0007_one_bet_per_commitment.sql`). A retry, a
+    // double tap or a page that came back from a login round trip and posted again all land
+    // here; the second one inserts nothing and reads back the bet the first one wrote. Done
+    // with ON CONFLICT rather than a look-before-insert because two simultaneous attempts
+    // would both look and both find nothing.
+    const inserted = await sql<RawRow[]>`
+      insert into bets ${sql(toBetInsert(bet, user.value.id))}
+      on conflict (creator_id, terms_hash) do nothing
+      returning id
+    `;
+    if (inserted.length === 0) {
+      const existing = await loadBetByCommitment(sql, user.value.id, bet.termsHash);
+      // The conflicting row is the caller's own by construction, so failing to read it back
+      // means something else is wrong — say so rather than pretending nothing happened.
+      return existing ? ok(existing) : err({ code: 'CONFLICT', reason: 'bet already exists' });
+    }
 
     const signatures = input.signature
       ? { creator: { signature: input.signature, atSeconds } }
@@ -259,6 +293,35 @@ export async function getBet(privyDid: string, betId: BetId): Promise<Result<Bet
     if (!user.ok) return user;
 
     const bet = await loadBet(sql, betId);
+    if (!bet) return err(notFound('bet'));
+
+    const role = resolveViewerRole(bet, { userId: user.value.id, wallet: user.value.wallet });
+    if (role === 'observer') return err(notFound('bet'));
+    return ok(bet);
+  });
+}
+
+/**
+ * The same bet, reached by the string that gets shared rather than by its uuid.
+ *
+ * Membership still decides what comes back: the short code is how a link names a bet, not a
+ * capability to read one, and the policies answer to `app.user_id` either way. Somebody who
+ * merely holds the link gets NOT_FOUND here — taking the other side is a different flow with
+ * an authorization of its own, still unwritten (0003).
+ */
+export async function getBetByShortCode(
+  privyDid: string,
+  shortCode: ShortCode,
+): Promise<Result<Bet, RepoError>> {
+  return withUser(privyDid, async (sql) => {
+    const user = await requireCurrentUser(sql, privyDid);
+    if (!user.ok) return user;
+
+    const rows = await sql<RawRow[]>`select id from bets where short_code = ${shortCode}`;
+    const id = rows[0]?.id;
+    if (id === undefined) return err(notFound('bet'));
+
+    const bet = await loadBet(sql, id as BetId);
     if (!bet) return err(notFound('bet'));
 
     const role = resolveViewerRole(bet, { userId: user.value.id, wallet: user.value.wallet });
@@ -418,8 +481,9 @@ export interface OpenDisputeInput {
 }
 
 /**
- * Says "no, they didn't", at the price of a bond. The bond is computed here from the pot
- * rather than accepted from the caller — it is money, and money is the domain's to decide.
+ * Says "no, they didn't". It costs nothing and moves nothing: the only thing a dispute
+ * changes is that the referee now decides, and their deadline is derived here rather than
+ * accepted from the caller.
  */
 export async function openDispute(
   privyDid: string,
@@ -441,7 +505,6 @@ export async function openDispute(
     const bet = caller.value.bet;
     const dispute: Dispute = {
       by: side,
-      bond: calculateDisputeBond(addUsdc(bet.stakeCreator, bet.stakeOpponent)),
       atSeconds,
       refereeDeadlineSeconds: atSeconds + REFEREE_TIMEOUT_SECONDS,
     };

@@ -93,6 +93,28 @@ export async function findUser(privyDid: string): Promise<Result<UserRecord, Rep
 }
 
 /**
+ * The row that has to exist before anything else can happen, created on the first request
+ * that arrives with a verified session.
+ *
+ * Read first, write only if there is nothing there: a bet is created once and read many
+ * times, so the common path is a select and the insert happens once in a user's life.
+ *
+ * **Nothing but the DID is stored, and that is the point.** A wallet address and an email
+ * would both be nice to have here, and both would have to come from the browser, and neither
+ * is a thing the browser is entitled to assert. `resolveViewerRole` matches a participant by
+ * wallet as well as by user id — so a client that could name its own wallet address could
+ * name somebody else's and be resolved into their seat on a bet. The authoritative source is
+ * Privy's own API, read server-side with the app secret, and that is where the wallet will
+ * come from when the chain layer needs one. Until something actually reads these fields,
+ * having them empty is better than having them wrong.
+ */
+export async function ensureUser(privyDid: string): Promise<Result<UserRecord, RepoError>> {
+  const existing = await findUser(privyDid);
+  if (existing.ok || existing.error.code !== 'NOT_FOUND') return existing;
+  return upsertUser(privyDid);
+}
+
+/**
  * Creates the row on first login and updates it afterwards. Authorized twice over: the DID
  * written is the session's own, and `users_insert_self` / `users_update_self` reject any
  * other. `coalesce` on update, so sending a partial profile does not blank what is there.

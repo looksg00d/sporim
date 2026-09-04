@@ -78,9 +78,12 @@ export interface Claim {
   readonly windowEndsAtSeconds: number;
 }
 
+/**
+ * Somebody said "no, they didn't". It carries no money: disagreeing is free, and the only
+ * thing it changes is who decides — see `constants.ts` for why there is no bond.
+ */
 export interface Dispute {
   readonly by: PartySide;
-  readonly bond: UsdcAmount;
   readonly atSeconds: number;
   readonly refereeDeadlineSeconds: number;
 }

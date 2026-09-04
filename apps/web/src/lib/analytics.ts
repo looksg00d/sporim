@@ -21,6 +21,8 @@ export type AnalyticsEvent =
   | { readonly name: 'decision_mode_selected'; readonly mode: DecisionMode }
   | { readonly name: 'hold_started' }
   | { readonly name: 'hold_cancelled'; readonly heldMs: number }
+  /** The commit button asked for a session instead of submitting. Not a failure — a gate. */
+  | { readonly name: 'login_required' }
   | { readonly name: 'bet_create_submitted'; readonly format: BetFormat }
   | { readonly name: 'bet_create_succeeded'; readonly format: BetFormat }
   | { readonly name: 'bet_create_failed'; readonly code: string }
@@ -64,6 +66,7 @@ export const ANALYTICS_EVENT_NAMES = [
   'decision_mode_selected',
   'hold_started',
   'hold_cancelled',
+  'login_required',
   'bet_create_submitted',
   'bet_create_succeeded',
   'bet_create_failed',

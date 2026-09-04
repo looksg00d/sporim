@@ -210,8 +210,8 @@ describeDb('bets repository', () => {
       await openDispute(didSasha, bet.id, { reason: 'he did not' }, AFTER_DEADLINE + 60),
     );
     expect(disputed.state).toBe('disputed');
-    // 10 % of a 40 USDC pot, clamped to the [1, 25] band — the domain's number, not the caller's.
-    expect(disputed.dispute?.bond).toBe(usdc(4));
+    // Disagreeing moves no money; all a dispute records is who objected and by when the
+    // referee has to answer.
     expect(disputed.dispute?.by).toBe('opponent');
 
     const events = await owner`

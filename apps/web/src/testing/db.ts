@@ -59,9 +59,15 @@ export interface FixtureBetOptions {
 
 /** The canonical `makeBet` fixture, re-pointed at real user rows and given fresh ids. */
 export function fixtureBet(options: FixtureBetOptions, overrides: Partial<Bet> = {}): Bet {
+  const id = uniqueBetId();
   return makeBet({
-    id: uniqueBetId(),
+    id,
     shortCode: uniqueShortCode(),
+    // Unique per fixture, because `bets_creator_commitment_key` (0007) treats one creator
+    // plus one commitment hash as one bet. Sharing the default hash would make every bet a
+    // fixture builds for the same person a *retry* of the first — which is exactly what that
+    // index is for, and exactly not what a test that wants two bets means.
+    termsHash: id.replace(/-/g, '').padEnd(64, '0').slice(0, 64) as Bet['termsHash'],
     creator: makeParty({ userId: options.creatorId, wallet: uniqueWallet() }),
     opponent: options.opponentId
       ? makeParty({ userId: options.opponentId, wallet: uniqueWallet(), displayName: 'sasha' })

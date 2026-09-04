@@ -48,6 +48,11 @@ export default defineConfig({
       NEXT_PUBLIC_CHAIN_MODE: 'mock',
       NEXT_PUBLIC_FEE_BPS: '300',
       NEXT_PUBLIC_MAX_STAKE_USDC: '100',
+      // Pinned empty and stubbed together, so the suite is the same run locally and on CI,
+      // where there is no `.env.local` and no Privy application. Nothing here reaches the
+      // network, and `authStub` is inert outside a local build — see `lib/env.ts`.
+      NEXT_PUBLIC_PRIVY_APP_ID: '',
+      NEXT_PUBLIC_AUTH_MODE: 'stub',
     },
   },
 });

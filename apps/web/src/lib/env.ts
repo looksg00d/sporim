@@ -14,6 +14,31 @@ const publicSchema = z.object({
   solanaCluster: z.enum(['devnet', 'mainnet-beta']),
   feeBps: z.coerce.number().int().min(0).max(1000),
   maxStakeUsdc: z.coerce.number().int().positive().max(100),
+  /**
+   * The Privy application. Public by design — it ships in the browser bundle and is also the
+   * `aud` claim the server checks a token against, so the two halves cannot drift apart.
+   *
+   * Nullable rather than required, because a deployment without it is a real state and the
+   * honest behaviour is to keep serving: the wizard, the landing page and a referee's read of
+   * the terms all work without an account. What it cannot do is sign anybody in, and every
+   * screen that needs one says so instead of pretending. It fails closed — there is no branch
+   * anywhere that treats "not configured" as "everyone is authenticated".
+   */
+  privyAppId: z.string().min(1).nullable(),
+  /**
+   * Replaces the sign-in provider with a stub that is always ready and always signed in, so
+   * the e2e suite can exercise the wizard offline and identically on CI, where there is no
+   * `.env.local` and no Privy application.
+   *
+   * Two properties make this safe to have in the shipped bundle:
+   *
+   *   * It is refused unless `appEnv` is `local`. Setting the variable on a preview or a
+   *     production deployment does nothing at all — the parse below drops it.
+   *   * It is a client-side belief and nothing more. A stubbed session produces no token, and
+   *     `create-bet` believes only a Privy JWT it has verified against the JWKS, so a request
+   *     made under it is refused by the server exactly like an anonymous one.
+   */
+  authStub: z.boolean(),
 });
 
 export type PublicEnv = z.infer<typeof publicSchema>;
@@ -47,13 +72,18 @@ function resolveAppUrl(source: Record<string, string | undefined>): string {
 
 /** Exported so tests can drive the same parse from an explicit record. */
 export function parsePublicEnv(source: Record<string, string | undefined>): PublicEnv {
+  const appEnv = source.NEXT_PUBLIC_APP_ENV ?? 'local';
   const parsed = publicSchema.safeParse({
     appUrl: resolveAppUrl(source),
-    appEnv: source.NEXT_PUBLIC_APP_ENV ?? 'local',
+    appEnv,
     chainMode: source.NEXT_PUBLIC_CHAIN_MODE ?? 'mock',
     solanaCluster: source.NEXT_PUBLIC_SOLANA_CLUSTER ?? 'devnet',
     feeBps: source.NEXT_PUBLIC_FEE_BPS ?? '300',
     maxStakeUsdc: source.NEXT_PUBLIC_MAX_STAKE_USDC ?? '100',
+    privyAppId: source.NEXT_PUBLIC_PRIVY_APP_ID?.trim() || null,
+    // The `appEnv` half is the guard, not a convenience: it is what makes the flag inert
+    // everywhere except a local build, whatever anybody sets in a deployment's variables.
+    authStub: source.NEXT_PUBLIC_AUTH_MODE === 'stub' && appEnv === 'local',
   });
   if (!parsed.success) throw new EnvError('client', parsed.error);
   return parsed.data;
@@ -73,6 +103,8 @@ export const env: PublicEnv = parsePublicEnv({
   NEXT_PUBLIC_SOLANA_CLUSTER: process.env.NEXT_PUBLIC_SOLANA_CLUSTER,
   NEXT_PUBLIC_FEE_BPS: process.env.NEXT_PUBLIC_FEE_BPS,
   NEXT_PUBLIC_MAX_STAKE_USDC: process.env.NEXT_PUBLIC_MAX_STAKE_USDC,
+  NEXT_PUBLIC_PRIVY_APP_ID: process.env.NEXT_PUBLIC_PRIVY_APP_ID,
+  NEXT_PUBLIC_AUTH_MODE: process.env.NEXT_PUBLIC_AUTH_MODE,
 });
 
 /** True while the money on screen is test money. Drives the banner that must never be hidden. */
@@ -124,4 +156,45 @@ export function parseDatabaseUrl(source: Record<string, string | undefined>): st
 export function databaseUrl(): string {
   if (typeof window !== 'undefined') throw new Error('databaseUrl() was called in the browser');
   return parseDatabaseUrl(process.env);
+}
+
+/**
+ * What the server needs to verify a Privy access token, and nothing else.
+ *
+ * Narrow like `databaseUrl()` for the same reason: a page that renders for an anonymous
+ * visitor should not fail because a Solana RPC endpoint is unset, and the session layer has
+ * no business reading a connection string.
+ *
+ * The app id appears on both sides of the fence on purpose. In the browser it selects the
+ * Privy application; here it is the `aud` claim a token must carry, so a token minted for
+ * somebody else's Privy app — a real, correctly-signed token — is refused rather than
+ * accepted as one of ours.
+ *
+ * The JWKS URL is a variable rather than derived from the app id so a key rotation or a
+ * self-hosted proxy is a deployment change, not a code change.
+ */
+const authSchema = z.object({
+  privyAppId: z.string().min(1),
+  privyJwksUrl: z.url(),
+});
+
+export type AuthEnv = z.infer<typeof authSchema>;
+
+export function parseAuthEnv(source: Record<string, string | undefined>): AuthEnv {
+  const parsed = authSchema.safeParse({
+    privyAppId: source.NEXT_PUBLIC_PRIVY_APP_ID,
+    privyJwksUrl: source.PRIVY_JWKS_URL,
+  });
+  if (!parsed.success) throw new EnvError('server', parsed.error);
+  return parsed.data;
+}
+
+/**
+ * Throws when the variables are missing, and that is the intended behaviour: reaching here
+ * means a token was actually presented, and a deployment that cannot check one must not
+ * quietly decide the answer is "no". The caller only asks once it has something to verify.
+ */
+export function authEnv(): AuthEnv {
+  if (typeof window !== 'undefined') throw new Error('authEnv() was called in the browser');
+  return parseAuthEnv(process.env);
 }

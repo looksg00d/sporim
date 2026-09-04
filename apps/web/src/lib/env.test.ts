@@ -19,6 +19,10 @@ describe('parsePublicEnv', () => {
       solanaCluster: 'devnet',
       feeBps: 300,
       maxStakeUsdc: 100,
+      // `null` rather than absent: a deployment without sign-in configured is a real state
+      // the review screen renders differently, not a missing variable to shrug at.
+      privyAppId: null,
+      authStub: false,
     });
   });
 
@@ -26,6 +30,44 @@ describe('parsePublicEnv', () => {
     const env = parsePublicEnv({});
     expect(env).toMatchObject({ appEnv: 'local', chainMode: 'mock', feeBps: 300 });
     expect(env.appUrl).toBe('http://localhost:3000');
+  });
+
+  describe('the stubbed session', () => {
+    it('is off unless it is asked for', () => {
+      expect(parsePublicEnv({ ...valid, NEXT_PUBLIC_APP_ENV: 'local' }).authStub).toBe(false);
+    });
+
+    it('turns on for a local build that asks for it', () => {
+      expect(
+        parsePublicEnv({
+          ...valid,
+          NEXT_PUBLIC_APP_ENV: 'local',
+          NEXT_PUBLIC_AUTH_MODE: 'stub',
+        }).authStub,
+      ).toBe(true);
+    });
+
+    /*
+     * The guard, and the reason the flag is safe to ship in the bundle at all: setting it on
+     * a deployment does nothing. Were this to regress, a preview or production build would
+     * tell every visitor they were signed in.
+     */
+    it.each(['preview', 'production'])('stays off on a %s deployment that asks for it', (env) => {
+      expect(
+        parsePublicEnv({ ...valid, NEXT_PUBLIC_APP_ENV: env, NEXT_PUBLIC_AUTH_MODE: 'stub' })
+          .authStub,
+      ).toBe(false);
+    });
+
+    it('ignores any other value', () => {
+      expect(
+        parsePublicEnv({
+          ...valid,
+          NEXT_PUBLIC_APP_ENV: 'local',
+          NEXT_PUBLIC_AUTH_MODE: 'true',
+        }).authStub,
+      ).toBe(false);
+    });
   });
 
   it('throws on a malformed URL rather than rendering against it', () => {

@@ -1,0 +1,33 @@
+-- 0007_one_bet_per_commitment.sql · a signed agreement is one bet, however many times it is
+-- submitted.
+--
+-- The problem this closes is not exotic. The commit button reaches the server over a mobile
+-- connection; the phone locks, the request is retried, the user taps twice because nothing
+-- happened yet, or the whole page comes back from a login round trip and posts the draft it
+-- was still holding. Every one of those is the same person committing once and the server
+-- hearing it more than once, and without this index each retry is a second bet with a second
+-- short code, a second referee invitation, and a second stake the user never meant to lock.
+--
+-- ## Why the key is the commitment hash rather than a token from the client
+--
+-- `bets.terms_hash` is sha256 of `commitmentCanonicalString` — the format, the words, the
+-- money, the deadline, who decides, who is named, the quoted fee, and the signature. Two
+-- submissions of the same signed agreement therefore produce the same value without anything
+-- being remembered between them: no idempotency key to mint, to store next to the draft, or
+-- to lose in whichever tab the mail app opened. Derived beats carried, and it means the
+-- client has nothing to get wrong or to forge — the hash is computed on the server from
+-- values the server re-validated.
+--
+-- Scoped to the creator, because two different people making the identical bet are two bets.
+-- The same creator making a literally identical one — same words, same stake, same deadline,
+-- same scrawl — is a retry: a drawn signature is never byte-identical twice, and a typed one
+-- that matches on every other field as well is the same agreement by any honest reading.
+--
+-- ## Why an index and not a check in the repository
+--
+-- Two requests that arrive together both see "no such bet" and both insert. The uniqueness
+-- has to be the database's, so `createBet` can insert with ON CONFLICT DO NOTHING and read
+-- back whichever attempt won. That is one round trip and no race, instead of a lock and a
+-- comment explaining the lock.
+
+create unique index bets_creator_commitment_key on bets (creator_id, terms_hash);

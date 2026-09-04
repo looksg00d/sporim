@@ -136,7 +136,7 @@ export default function JudgeStepPage() {
             color: color.inkSecondary,
           }}
         >
-          {TRUST_COPY.disputeBond}
+          {TRUST_COPY.disputing}
         </p>
 
         {refereeIsOpponent ? (

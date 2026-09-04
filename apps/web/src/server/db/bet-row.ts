@@ -154,7 +154,6 @@ export type ClaimRow = z.output<typeof claimRowSchema>;
 
 export const disputeRowSchema = z.object({
   by_side: z.enum(PARTY_SIDES),
-  bond_amount: usdcColumn,
   opened_at: unixSecondsColumn,
   referee_deadline_at: unixSecondsColumn,
 });
@@ -221,7 +220,6 @@ export function toBet(bundle: BetRowBundle): Bet {
   const dispute: Dispute | null = bundle.dispute
     ? {
         by: bundle.dispute.by_side,
-        bond: bundle.dispute.bond_amount,
         atSeconds: bundle.dispute.opened_at,
         refereeDeadlineSeconds: bundle.dispute.referee_deadline_at,
       }
@@ -334,7 +332,6 @@ export interface DisputeInsert {
   readonly claim_id: string;
   readonly by_side: Dispute['by'];
   readonly disputer_user_id: UserId | null;
-  readonly bond_amount: bigint;
   readonly reason: string | null;
   readonly opened_at: Date;
   readonly referee_deadline_at: Date;
@@ -352,7 +349,6 @@ export function toDisputeInsert(
     claim_id: claimId,
     by_side: dispute.by,
     disputer_user_id: disputerUserId,
-    bond_amount: dispute.bond,
     reason,
     opened_at: toTimestamp(dispute.atSeconds),
     referee_deadline_at: toTimestamp(dispute.refereeDeadlineSeconds),

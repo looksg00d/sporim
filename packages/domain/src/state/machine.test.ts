@@ -6,7 +6,6 @@ import {
   SECONDS_PER_DAY,
 } from '../constants';
 import { calculateSettlement } from '../money/settlement';
-import { usdc } from '../money/usdc';
 import {
   makeBet,
   makeParty,
@@ -160,7 +159,6 @@ describe('allowedActions — claimed', () => {
 
 const DISPUTE = {
   by: 'opponent',
-  bond: usdc(4),
   atSeconds: DEADLINE + 1,
   refereeDeadlineSeconds: DEADLINE + 1 + REFEREE_TIMEOUT_SECONDS,
 } as const;
@@ -179,25 +177,21 @@ describe('allowedActions — disputed', () => {
     expect(allowedActions(disputedBet, 'opponent', DEADLINE + 2)).toEqual([]);
   });
 
-  it('upholds the claim if the referee never shows up', () => {
-    // Silence means the same thing everywhere in this product: no objection sustained. If a
-    // silent referee refunded instead, the losing side could dispute, wait out an inattentive
-    // friend, and turn a loss into a full refund for free.
+  it('refunds if the referee never shows up, even having taken the role', () => {
+    // Once somebody has objected, the disagreement is a known fact. Settling it on whether a
+    // third person opened a link decides by attendance rather than by merit, and the side who
+    // was right would lose the pot because somebody else went quiet.
     const after = DEADLINE + 1 + REFEREE_TIMEOUT_SECONDS;
     for (const role of VIEWER_ROLES) {
-      expect(allowedActions(disputedBet, role, after)).toEqual(['settleUnrefereed']);
+      expect(allowedActions(disputedBet, role, after)).toEqual(['refundExpired']);
     }
-  });
-
-  it('settles rather than refunds when the referee runs out of time', () => {
-    const after = DEADLINE + 1 + REFEREE_TIMEOUT_SECONDS;
-    expect(nextState(allowedActions(disputedBet, 'creator', after)[0]!)).toBe('resolved');
+    expect(nextState('refundExpired')).toBe('refunded');
   });
 
   it('lets anyone push it through — the money is never trapped behind one person', () => {
     const after = DEADLINE + 1 + REFEREE_TIMEOUT_SECONDS;
-    expect(PERMISSIONLESS_ACTIONS).toContain('settleUnrefereed');
-    expect(allowedActions(disputedBet, 'observer', after)).toEqual(['settleUnrefereed']);
+    expect(PERMISSIONLESS_ACTIONS).toContain('refundExpired');
+    expect(allowedActions(disputedBet, 'observer', after)).toEqual(['refundExpired']);
   });
 });
 
@@ -211,9 +205,9 @@ describe('allowedActions — disputed with a referee who never took the role', (
     expect(allowedActions(disputedBet, 'referee', DEADLINE + 2)).toEqual([]);
   });
 
-  it('refunds both sides instead of upholding the claim', () => {
-    // Silence from someone nobody asked is not "no objection sustained" — it is the absence
-    // of a referee. Letting it decide would punish the disputer for the creator's choice.
+  it("refunds both sides, exactly as a confirmed referee's silence does", () => {
+    // The two branches used to differ here; since 2026-09-04 they do not. Confirmation still
+    // decides who may rule — asserted above — but no longer what silence means.
     for (const role of VIEWER_ROLES) {
       expect(allowedActions(disputedBet, role, REFEREE_DEADLINE)).toEqual(['refundExpired']);
     }
@@ -231,62 +225,53 @@ describe('allowedActions — disputed with a referee who never took the role', (
     // a real friend who gets the link can still show up and decide.
     const confirmed = disputedBetWith(makeReferee({ confirmedAtSeconds: DEADLINE + 2 }));
     expect(allowedActions(confirmed, 'referee', DEADLINE + 3)).toEqual(['refereeResolve']);
-    expect(allowedActions(confirmed, 'observer', REFEREE_DEADLINE)).toEqual(['settleUnrefereed']);
   });
 });
 
-describe('what the two branches cost the parties', () => {
-  // The point of the split is money, so the split is asserted in money. Same bet, same
-  // dispute, same silence — the only difference is whether the referee ever agreed to judge.
+describe('what a silent referee costs the parties', () => {
+  /*
+   * The rule is about money, so it is asserted in money. A dispute carries no bond, so the
+   * only question left is what the refund pays out — and the answer has to be "exactly the
+   * stakes", with nothing skimmed from either side for having disagreed.
+   */
   const bet = disputedBetWith(REFEREE);
-  const dispute = { by: DISPUTE.by, bond: DISPUTE.bond };
 
-  function settle(action: 'settleUnrefereed' | 'refundExpired') {
-    return unwrap(
+  const settled = () =>
+    unwrap(
       calculateSettlement({
         format: bet.format,
         stakeCreator: bet.stakeCreator,
         stakeOpponent: bet.stakeOpponent,
         feeBps: bet.feeBps,
-        // `settleUnrefereed` upholds the claim; `refundExpired` decides nothing at all.
-        outcome: action === 'settleUnrefereed' ? bet.claim!.outcome : 'refund',
-        dispute,
+        // `refundExpired` decides nothing, so there is no winner and nothing is charged.
+        outcome: 'refund',
       }),
     );
-  }
 
-  /** The 40 USDC pot less the 3 % charged on the 20 USDC actually won. */
-  const POT_AFTER_FEE = 39_400_000n;
+  it('returns both stakes untouched', () => {
+    const settlement = settled();
+    expect(settlement.kind).toBe('refund');
+    expect(settlement.winner).toBeNull();
+    expect(settlement.toCreator).toBe(bet.stakeCreator);
+    expect(settlement.toOpponent).toBe(bet.stakeOpponent);
+  });
 
-  it('pays the claimant the pot when the confirmed referee goes silent', () => {
-    const settlement = settle('settleUnrefereed');
-    expect(settlement.kind).toBe('payout');
-    expect(settlement.winner).toBe('creator');
-    expect(settlement.toCreator).toBe(POT_AFTER_FEE + DISPUTE.bond);
-    expect(settlement.toOpponent).toBe(ZERO_USDC);
-    // Nobody ruled, so nobody is paid for ruling.
+  it('charges nothing — no fee, and no share for a referee who did not rule', () => {
+    const settlement = settled();
+    expect(settlement.fee).toBe(ZERO_USDC);
+    expect(settlement.toTreasury).toBe(ZERO_USDC);
     expect(settlement.toReferee).toBe(ZERO_USDC);
   });
 
-  it('gives both sides their stake back when the referee never took the role', () => {
-    const settlement = settle('refundExpired');
-    expect(settlement.kind).toBe('refund');
-    expect(settlement.winner).toBeNull();
-    expect(settlement.fee).toBe(ZERO_USDC);
+  /*
+   * The cost of the rule, stated so nobody has to rediscover it: a party who has lost can
+   * object for nothing and, if the referee then vanishes, walk away whole. We accept it
+   * because among friends the objection carries a name. If the funnel says otherwise, the
+   * answer is a number, not a guess.
+   */
+  it('leaves the disputer no worse off than not disputing — deliberately', () => {
+    const settlement = settled();
     expect(settlement.toOpponent).toBe(bet.stakeOpponent);
-    // Refunded, but not for free: the bond still crosses to the other side, so opening a
-    // dispute against an unconfirmed referee is not a costless way out of a loss.
-    expect(settlement.toCreator).toBe(bet.stakeCreator + DISPUTE.bond);
-  });
-
-  it('keeps the bond away from the disputer in both branches', () => {
-    const upheld = settle('settleUnrefereed');
-    const refunded = settle('refundExpired');
-    expect(upheld.bond).toBe(DISPUTE.bond);
-    expect(refunded.bond).toBe(DISPUTE.bond);
-    // The disputer is the opponent, and neither branch hands it back to them.
-    expect(upheld.toOpponent).toBe(ZERO_USDC);
-    expect(refunded.toOpponent).toBe(bet.stakeOpponent);
   });
 });
 
@@ -323,7 +308,6 @@ describe('invariant: money is never trapped', () => {
               state === 'disputed'
                 ? {
                     by: 'opponent',
-                    bond: usdc(4),
                     atSeconds: DEADLINE + 1,
                     refereeDeadlineSeconds: DEADLINE + 1 + REFEREE_TIMEOUT_SECONDS,
                   }

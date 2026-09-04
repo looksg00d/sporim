@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { FEE_BPS, MAX_DISPUTE_BOND, MIN_DISPUTE_BOND } from '../constants';
+import { FEE_BPS } from '../constants';
 import { BET_FORMATS, type BetFormat } from '../types/bet';
 import { asUsdcAmount, ZERO_USDC, type UsdcAmount } from '../types/money';
 import { unwrap } from '../types/result';
 import {
-  calculateDisputeBond,
   calculateSettlement,
   feeOn,
   type SettlementInput,
@@ -40,7 +39,7 @@ describe('calculateSettlement — invariants across formats × outcomes × stake
       const s = unwrap(calculateSettlement(input));
 
       // Money in == money out, always.
-      expect(s.toCreator + s.toOpponent + s.toTreasury).toBe(s.pot + s.bond);
+      expect(s.toCreator + s.toOpponent + s.toTreasury).toBe(s.pot);
       expect(s.pot).toBe(input.stakeCreator + input.stakeOpponent);
       expect(s.toTreasury).toBe(s.fee);
 
@@ -143,42 +142,6 @@ describe('calculateSettlement — known values', () => {
   });
 });
 
-describe('calculateSettlement — dispute bond routing', () => {
-  const base: SettlementInput = {
-    format: 'bet',
-    stakeCreator: usdc(20),
-    stakeOpponent: usdc(20),
-    feeBps: FEE_BPS,
-    outcome: 'creator_wins',
-  };
-  const bond = usdc(4);
-
-  it('disputer loses the bond when the outcome goes against them', () => {
-    const s = unwrap(calculateSettlement({ ...base, dispute: { by: 'opponent', bond } }));
-    expect(s.bond).toBe(bond);
-    expect(s.toCreator).toBe(39_400_000n + bond);
-    expect(s.toOpponent).toBe(0n);
-    expect(s.toCreator + s.toOpponent + s.toTreasury).toBe(s.pot + s.bond);
-  });
-
-  it('disputer keeps the bond when the outcome favours them', () => {
-    const s = unwrap(
-      calculateSettlement({ ...base, outcome: 'opponent_wins', dispute: { by: 'opponent', bond } }),
-    );
-    expect(s.toOpponent).toBe(39_400_000n + bond);
-    expect(s.toCreator).toBe(0n);
-  });
-
-  it('draw returns the bond to the disputer with zero fee', () => {
-    const s = unwrap(
-      calculateSettlement({ ...base, outcome: 'draw', dispute: { by: 'creator', bond } }),
-    );
-    expect(s.fee).toBe(0n);
-    expect(s.toCreator).toBe(usdc(20) + bond);
-    expect(s.toOpponent).toBe(usdc(20));
-  });
-});
-
 describe('calculateSettlement — validation', () => {
   it('rejects fee above the 10 % ceiling', () => {
     const r = calculateSettlement({
@@ -206,85 +169,10 @@ describe('calculateSettlement — validation', () => {
   });
 });
 
-describe('calculateDisputeBond', () => {
-  it('is 10 % of the pot inside the clamp', () => {
-    expect(calculateDisputeBond(usdc(40))).toBe(usdc(4));
-  });
-  it('clamps to the minimum for small pots', () => {
-    expect(calculateDisputeBond(usdc(2))).toBe(MIN_DISPUTE_BOND);
-  });
-  it('clamps to the maximum for large pots', () => {
-    expect(calculateDisputeBond(usdc(1_000))).toBe(MAX_DISPUTE_BOND);
-  });
-});
-
 describe('feeOn', () => {
   it('computes basis points with floor', () => {
     expect(feeOn(usdc(20), 300)).toBe(600_000n);
     expect(feeOn(asUsdcAmount(33n), 300)).toBe(0n);
-  });
-});
-
-describe('the dispute bond is not a free option', () => {
-  const BOND = usdc(2);
-  const disputed = (
-    by: 'creator' | 'opponent',
-    outcome: 'creator_wins' | 'opponent_wins' | 'draw' | 'refund',
-  ) =>
-    unwrap(
-      calculateSettlement({
-        format: 'bet',
-        stakeCreator: usdc(20),
-        stakeOpponent: usdc(20),
-        feeBps: FEE_BPS,
-        outcome,
-        dispute: { by, bond: BOND },
-      }),
-    );
-
-  // 40 pot, fee is 3% of the 20 net winnings = 0.60, so a winner is paid 39.40.
-  const PAYOUT = 39_400_000n;
-
-  it('returns the bond when the referee rules for the disputer', () => {
-    const s = disputed('opponent', 'opponent_wins');
-    expect(s.toOpponent).toBe(PAYOUT + BOND);
-  });
-
-  it('gives the bond to the counterparty when the referee rules against the disputer', () => {
-    const s = disputed('opponent', 'creator_wins');
-    expect(s.toCreator).toBe(PAYOUT + BOND);
-    expect(s.toOpponent).toBe(0n);
-  });
-
-  it('returns the bond on a referee-ruled draw — the dispute had merit', () => {
-    const s = disputed('opponent', 'draw');
-    expect(s.toOpponent).toBe(20_000_000n + BOND);
-    expect(s.toCreator).toBe(20_000_000n);
-  });
-
-  it('does NOT return the bond when the referee never ruled', () => {
-    // The exploit this guards: a losing side disputes, waits out a silent referee for seven
-    // days (machine.ts sends `disputed` past its deadline to `refundExpired`), and walks away
-    // with a full refund. Returning the bond would make that cost nothing.
-    const s = disputed('opponent', 'refund');
-    expect(s.toOpponent).toBe(20_000_000n);
-    expect(s.toCreator).toBe(20_000_000n + BOND);
-  });
-
-  it('costs the disputer their bond either way once they lose or go unheard', () => {
-    for (const outcome of ['creator_wins', 'refund'] as const) {
-      const s = disputed('opponent', outcome);
-      expect(s.toOpponent).toBeLessThan(20_000_000n + BOND);
-    }
-  });
-
-  it('never mints or burns money — bond included', () => {
-    for (const by of ['creator', 'opponent'] as const) {
-      for (const outcome of ['creator_wins', 'opponent_wins', 'draw', 'refund'] as const) {
-        const s = disputed(by, outcome);
-        expect(s.toCreator + s.toOpponent + s.toTreasury).toBe(s.pot + BOND);
-      }
-    }
   });
 });
 
@@ -364,7 +252,7 @@ describe('the referee is paid out of the fee, never on top of it', () => {
     }
   });
 
-  it('conserves money end to end with a referee share and a bond', () => {
+  it('conserves money end to end with a referee share', () => {
     const s = unwrap(
       calculateSettlement({
         format: 'bet',
@@ -373,9 +261,8 @@ describe('the referee is paid out of the fee, never on top of it', () => {
         feeBps: FEE_BPS,
         outcome: 'creator_wins',
         ruledByReferee: true,
-        dispute: { by: 'opponent', bond: usdc(2) },
       }),
     );
-    expect(s.toCreator + s.toOpponent + s.toTreasury + s.toReferee).toBe(s.pot + s.bond);
+    expect(s.toCreator + s.toOpponent + s.toTreasury + s.toReferee).toBe(s.pot);
   });
 });

@@ -4,6 +4,7 @@ import {
   clampSignature,
   formatUsdc,
   parseUsdc,
+  signatureSchema,
   type BetDraft,
 } from '@sporim/domain';
 import { z } from 'zod';
@@ -32,17 +33,9 @@ const storedSchema = z.object({
   refereeRef: z.string(),
   beneficiaryKind: z.enum(['friend', 'charity', 'vault']).nullable(),
   beneficiaryRef: z.string(),
-  // A stored signature is untrusted input like any other, so it is re-clamped on read.
-  signature: z
-    .union([
-      z.object({ kind: z.literal('typed'), name: z.string() }),
-      z.object({
-        kind: z.literal('drawn'),
-        strokes: z.array(z.array(z.number()).max(2000)).max(200),
-        height: z.number().positive(),
-      }),
-    ])
-    .nullable(),
+  // A stored signature is untrusted input like any other, so it goes through the same schema
+  // a server action uses and is re-clamped on read.
+  signature: signatureSchema.nullable(),
 });
 
 export function serializeDraft(draft: BetDraft): string {

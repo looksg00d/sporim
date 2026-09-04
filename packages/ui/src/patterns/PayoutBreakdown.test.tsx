@@ -30,8 +30,13 @@ describe('PayoutBreakdown', () => {
     render(
       <PayoutBreakdown format="commit" stake={usdc(20)} feeBps={FEE_BPS} perspective="opponent" />,
     );
-    // "You risk nothing" would be false: disputing a result costs a bond that is
-    // forfeited to the other side when the referee disagrees (settlement.ts, bondRouting).
+    /*
+     * With the dispute bond gone (2026-09-04) "you risk nothing" is no longer *false* for a
+     * Commit beneficiary — they really do put in nothing. It stays banned anyway, for a
+     * different and more durable reason: it is a blanket promise, this component also renders
+     * Bet, and a phrase that is true on one screen and false on the next is worse than one
+     * that is merely vague. "You staked nothing" says the same thing and stays true.
+     */
     expect(screen.getByText('You staked nothing')).toBeInTheDocument();
     expect(screen.queryByText(/risk nothing/i)).not.toBeInTheDocument();
   });

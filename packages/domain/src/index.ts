@@ -37,14 +37,12 @@ export * from './types/bet';
 export { parseUsdc, usdc, formatUsdc, formatUsdcLabel, type UsdcParseError } from './money/usdc';
 export {
   calculateSettlement,
-  calculateDisputeBond,
   feeOn,
   otherSide,
   type Settlement,
   type SettlementInput,
   type SettlementOutcome,
   type SettlementError,
-  type DisputeInput,
 } from './money/settlement';
 
 // --- validation ---
@@ -62,6 +60,12 @@ export {
   type BetDraftInput,
   type BetDraftValues,
 } from './schemas/draft';
+export {
+  signatureSchema,
+  MAX_PARSED_STROKES,
+  MAX_PARSED_STROKE_NUMBERS,
+  type SignatureInput,
+} from './schemas/signature';
 export {
   waitlistInputSchema,
   looksAutomated,
@@ -102,6 +106,7 @@ export {
   type SubmittableDraft,
   type DraftError,
 } from './draft/reducer';
+export { COMMITMENT_VERSION, commitmentCanonicalString } from './draft/commitment';
 
 // --- signature ---
 export {

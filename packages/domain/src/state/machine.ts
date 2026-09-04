@@ -18,8 +18,6 @@ export const BET_ACTIONS = [
   'disputeClaim',
   'settleUncontested',
   'refereeResolve',
-  /** A dispute the referee never ruled on: the claim stands. */
-  'settleUnrefereed',
   'refundExpired',
 ] as const;
 export type BetAction = (typeof BET_ACTIONS)[number];
@@ -27,7 +25,6 @@ export type BetAction = (typeof BET_ACTIONS)[number];
 export const PERMISSIONLESS_ACTIONS = [
   'expireUnaccepted',
   'settleUncontested',
-  'settleUnrefereed',
   'refundExpired',
 ] as const satisfies readonly BetAction[];
 
@@ -75,28 +72,31 @@ function claimedActions(bet: Bet, role: ViewerRole, now: number): BetAction[] {
 }
 
 /**
- * What a silent referee's deadline means depends on whether they ever agreed to the job.
+ * A referee who never rules refunds the bet. Confirmed or not, and whatever was claimed.
  *
- * **Confirmed** — they opened their link and took the role. Silence then means the same thing
- * it means everywhere else in this product: no objection sustained. The claim stands and the
- * disputer forfeits their bond, so disputing is not a free rollback.
+ * This reverses the earlier rule, where a *confirmed* referee's silence upheld the claim
+ * (2026-09-04; the reasoning is in `docs/DECISIONS.md`). Two things moved:
  *
- * **Unconfirmed** — they are a name the creator typed, and nobody asked them. Letting that
- * silence decide would punish the disputer for the creator's unilateral choice of a stranger,
- * so the bet refunds instead. Such a bet is in effect a word-of-honour bet, which is honest:
- * it has no referee. Disputing still costs the bond (`bondRouting` hands it to the
- * counterparty on an unadjudicated refund), so it is not free either.
+ *   * **Silence is not agreement once somebody has objected.** UMA and Polymarket accept an
+ *     unchallenged claim after a timeout, and that is the only thing the researched systems
+ *     support. After a challenge the disagreement is a known fact, and settling it on whether
+ *     a third person opened a link decides by attendance rather than by merit. The honest
+ *     side would lose the pot because somebody else went quiet.
+ *   * **Nothing is left to protect.** The old rule earned its keep by making a losing party's
+ *     objection worthless, which mattered while a refund was the alternative. With the bond
+ *     gone the deterrent is social, and it applies the same either way.
  *
- * The counter-risk to the confirmed branch is a creator naming someone they know will ghost
- * and then claiming falsely. Confirmation is exactly what closes it: an accomplice must now
- * actively take the role, and the referee is on the card before the other side stakes money.
+ * What we accept in exchange: a party who has lost can object at no cost and, if the referee
+ * then vanishes, get their stake back. The wager is that among friends this is embarrassing
+ * enough not to happen, and that if the funnel says otherwise, it says so in numbers.
+ *
+ * Confirmation still decides who may *rule* — an unconfirmed name cannot — so the card can
+ * tell the other side whether a judge exists before they stake anything.
  */
 function disputedActions(bet: Bet, role: ViewerRole, now: number): BetAction[] {
   const dispute = bet.dispute;
   if (!dispute) return [];
-  if (now >= dispute.refereeDeadlineSeconds) {
-    return isRefereeConfirmed(bet.referee) ? ['settleUnrefereed'] : ['refundExpired'];
-  }
+  if (now >= dispute.refereeDeadlineSeconds) return ['refundExpired'];
   return role === 'referee' && isRefereeConfirmed(bet.referee) ? ['refereeResolve'] : [];
 }
 
@@ -147,7 +147,6 @@ export function nextState(action: BetAction): BetState {
       return 'disputed';
     case 'confirmClaim':
     case 'settleUncontested':
-    case 'settleUnrefereed':
     case 'refereeResolve':
       return 'resolved';
     case 'refundExpired':

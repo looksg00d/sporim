@@ -30,10 +30,16 @@ export const MAX_FEE_BPS = 1_000; // hard ceiling — the community's stated max
  */
 export const REFEREE_FEE_SHARE_BPS = 100; // 1 % of net winnings, taken out of FEE_BPS
 
-/** Dispute bond: 10 % of the pot, clamped. */
-export const DISPUTE_BOND_BPS = 1_000;
-export const MIN_DISPUTE_BOND = asUsdcAmount(1n * USDC_BASE);
-export const MAX_DISPUTE_BOND = asUsdcAmount(25n * USDC_BASE);
+/*
+ * There is no dispute bond, and that is a decision rather than an omission (2026-09-04).
+ *
+ * A bond exists to stop the losing side from objecting to everything for free. In an
+ * anonymous market that is the only lever there is, which is why UMA and Reality.eth have
+ * one. Here both sides and the referee are people who know each other, an objection carries
+ * the objector's name, and being the friend who contests a bet they plainly lost costs
+ * something a bond cannot price. Charging money to say "no, they didn't" bought a deterrent
+ * we already had, and made disagreeing feel like filing a claim.
+ */
 
 /** Timing (seconds). */
 export const SECONDS_PER_HOUR = 3_600;

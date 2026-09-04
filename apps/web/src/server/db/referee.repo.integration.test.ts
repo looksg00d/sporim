@@ -234,13 +234,14 @@ describeDb('referee invitations', () => {
 
     const before = unwrap(await readRefereeInvite(named.token)).bet;
     expect(allowedActions(before, 'referee', AFTER_DEADLINE + 120)).toEqual([]);
-    // Nobody asked this person, so their silence decides nothing and the money goes back.
     const deadline = AFTER_DEADLINE + 60 + REFEREE_TIMEOUT_SECONDS;
     expect(allowedActions(before, 'observer', deadline)).toEqual(['refundExpired']);
 
     const after = unwrap(await confirmReferee(didAnya, named.token, AFTER_DEADLINE + 90));
     expect(allowedActions(after, 'referee', AFTER_DEADLINE + 120)).toEqual(['refereeResolve']);
-    expect(allowedActions(after, 'observer', deadline)).toEqual(['settleUnrefereed']);
+    // Taking the role buys the *right to rule*, and nothing else: silence past the deadline
+    // refunds either way (0009/0010). That is the whole difference the feature makes.
+    expect(allowedActions(after, 'observer', deadline)).toEqual(['refundExpired']);
 
     // And the server agrees with the screen, because both ask the same function.
     const ruled = unwrap(

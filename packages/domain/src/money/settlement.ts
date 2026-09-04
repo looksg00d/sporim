@@ -1,11 +1,4 @@
-import {
-  BPS_DENOMINATOR,
-  REFEREE_FEE_SHARE_BPS,
-  DISPUTE_BOND_BPS,
-  MAX_DISPUTE_BOND,
-  MAX_FEE_BPS,
-  MIN_DISPUTE_BOND,
-} from '../constants';
+import { BPS_DENOMINATOR, REFEREE_FEE_SHARE_BPS, MAX_FEE_BPS } from '../constants';
 import type { BetFormat, Outcome, PartySide } from '../types/bet';
 import { addUsdc, asUsdcAmount, subUsdc, ZERO_USDC, type UsdcAmount } from '../types/money';
 
@@ -28,18 +21,21 @@ import { err, ok, type Result } from '../types/result';
 
 export type SettlementOutcome = Outcome | 'refund';
 
-export interface DisputeInput {
-  readonly by: PartySide;
-  readonly bond: UsdcAmount;
-}
-
+/**
+ * A dispute is deliberately absent from this input.
+ *
+ * It used to carry a bond, and the bond had to be routed to somebody, which made saying "no,
+ * they didn't" a transaction. Removing it (2026-09-04) took the dispute out of the money
+ * entirely: disagreeing is now a state-machine event and costs nothing, so the numbers depend
+ * only on the stakes, the fee and who won. Whether anybody objected on the way here changes
+ * no figure on any screen.
+ */
 export interface SettlementInput {
   readonly format: BetFormat;
   readonly stakeCreator: UsdcAmount;
   readonly stakeOpponent: UsdcAmount;
   readonly feeBps: number;
   readonly outcome: SettlementOutcome;
-  readonly dispute?: DisputeInput | null;
   /** True when a referee decided this outcome, which is the only thing that earns their share. */
   readonly ruledByReferee?: boolean;
 }
@@ -48,7 +44,6 @@ export interface Settlement {
   readonly kind: 'payout' | 'refund';
   readonly winner: PartySide | null;
   readonly pot: UsdcAmount;
-  readonly bond: UsdcAmount;
   /** What the parties pay in total. `toTreasury + toReferee` always equals this. */
   readonly fee: UsdcAmount;
   readonly toCreator: UsdcAmount;
@@ -101,30 +96,6 @@ function winnerAndNet(
   return { winner: 'opponent', net: stakeCreator };
 }
 
-function bondRouting(
-  dispute: DisputeInput | null | undefined,
-  outcome: SettlementOutcome,
-  winner: PartySide | null,
-): { bond: UsdcAmount; toCreator: UsdcAmount; toOpponent: UsdcAmount } {
-  if (!dispute) return { bond: ZERO_USDC, toCreator: ZERO_USDC, toOpponent: ZERO_USDC };
-
-  // The bond only comes back when a referee actually ruled and the ruling did not go against
-  // the disputer: a win for their side, or a draw.
-  //
-  // An unadjudicated `refund` must NOT return it, or disputing becomes a free option. Since
-  // `settleUnrefereed` was introduced a silent referee upholds the claim instead of refunding,
-  // so this combination is no longer reachable through `machine.ts` — the rule stays as a
-  // guard, because the settlement math is also the contract the on-chain program mirrors and
-  // it must not depend on the client reaching it the right way.
-  const ruledForDisputer = outcome === 'draw' || winner === dispute.by;
-  const bondGoesTo: PartySide = ruledForDisputer ? dispute.by : otherSide(dispute.by);
-  return {
-    bond: dispute.bond,
-    toCreator: bondGoesTo === 'creator' ? dispute.bond : ZERO_USDC,
-    toOpponent: bondGoesTo === 'opponent' ? dispute.bond : ZERO_USDC,
-  };
-}
-
 export function calculateSettlement(input: SettlementInput): Result<Settlement, SettlementError> {
   const invalid = validate(input);
   if (invalid) return err(invalid);
@@ -132,15 +103,13 @@ export function calculateSettlement(input: SettlementInput): Result<Settlement, 
   const pot = addUsdc(input.stakeCreator, input.stakeOpponent);
 
   if (input.outcome === 'refund' || input.outcome === 'draw') {
-    const routed = bondRouting(input.dispute, input.outcome, null);
     return ok({
       kind: 'refund',
       winner: null,
       pot,
-      bond: routed.bond,
       fee: ZERO_USDC,
-      toCreator: addUsdc(input.stakeCreator, routed.toCreator),
-      toOpponent: addUsdc(input.stakeOpponent, routed.toOpponent),
+      toCreator: input.stakeCreator,
+      toOpponent: input.stakeOpponent,
       toTreasury: ZERO_USDC,
       // A refund is not a win, so there is no fee to split — a referee who ruled a draw is
       // paid nothing. Their share comes out of winnings, and there are none.
@@ -151,7 +120,6 @@ export function calculateSettlement(input: SettlementInput): Result<Settlement, 
   const { winner, net } = winnerAndNet(input, input.outcome);
   const fee = feeOn(net, input.feeBps);
   const payout = subUsdc(pot, fee);
-  const routed = bondRouting(input.dispute, input.outcome, winner);
 
   // The referee is paid out of the fee, never on top of it: the parties are charged the same
   // 3 % whether or not anybody had to rule. Capped at the fee so a misconfigured share can
@@ -164,22 +132,10 @@ export function calculateSettlement(input: SettlementInput): Result<Settlement, 
     kind: 'payout',
     winner,
     pot,
-    bond: routed.bond,
     fee,
-    toCreator: addUsdc(winner === 'creator' ? payout : ZERO_USDC, routed.toCreator),
-    toOpponent: addUsdc(winner === 'opponent' ? payout : ZERO_USDC, routed.toOpponent),
+    toCreator: winner === 'creator' ? payout : ZERO_USDC,
+    toOpponent: winner === 'opponent' ? payout : ZERO_USDC,
     toTreasury: subUsdc(fee, refereeShare),
     toReferee: refereeShare,
   });
-}
-
-/** 10 % of the pot, clamped to [1, 25] USDC — the price of saying "no, they didn't". */
-export function calculateDisputeBond(
-  pot: UsdcAmount,
-  bondBps: number = DISPUTE_BOND_BPS,
-): UsdcAmount {
-  const raw = (pot * BigInt(bondBps)) / BPS_DENOMINATOR;
-  if (raw < MIN_DISPUTE_BOND) return asUsdcAmount(MIN_DISPUTE_BOND);
-  if (raw > MAX_DISPUTE_BOND) return asUsdcAmount(MAX_DISPUTE_BOND);
-  return asUsdcAmount(raw);
 }

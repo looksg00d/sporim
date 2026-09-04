@@ -72,8 +72,8 @@ export const TRUST_COPY = {
     'Sign in first. The role is tied to an account, not to the link — otherwise whoever it gets forwarded to next could take your place.',
 
   linkWarning: 'Anyone with this link can accept. Send it to the right person.',
-  disputeBond:
-    'Disputing a result costs a deposit of 10% of the pot. You get it back if the referee agrees with you, and lose it to the other side if they do not.',
+  disputing:
+    "Disagreeing is free. If you say they didn't do it, your referee decides — and if your referee never does, everyone gets their money back.",
   devnet: 'Devnet — test money only.',
 } as const;
 

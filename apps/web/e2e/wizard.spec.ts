@@ -53,6 +53,19 @@ async function reachReview(page: Page) {
   await page.waitForURL('**/new/review');
 }
 
+/**
+ * Re-enters review with the wallet mocked. Locking in for real needs a verified Privy token,
+ * which a headless browser cannot obtain, so the tests that walk past the commit button say
+ * so in the URL rather than quietly appearing to have exercised the server.
+ *
+ * Re-navigating is safe: the draft lives in `sessionStorage` and the screen restores it.
+ */
+async function mockWallet(page: Page, failWith?: string) {
+  const query = failWith === undefined ? 'mock=ok' : `mockFail=${failWith}`;
+  await page.goto(`/new/review?${query}`);
+  await expect(page.getByTestId('commit')).toBeEnabled();
+}
+
 test.describe('S1 — terms', () => {
   test('/new sends you to the first step', async ({ page }) => {
     await page.goto('/new');
@@ -251,6 +264,7 @@ test.describe('S5 — review and signing', () => {
   test('a signed bet locks in and hands back a code', async ({ page }) => {
     await reachReview(page);
     await sign(page);
+    await mockWallet(page);
     await page.getByTestId('commit').click();
 
     await page.waitForURL('**/new/done**', { timeout: 15_000 });
@@ -261,6 +275,7 @@ test.describe('S5 — review and signing', () => {
   test('says plainly that nothing moved, because nothing did', async ({ page }) => {
     await reachReview(page);
     await sign(page);
+    await mockWallet(page);
     await page.getByTestId('commit').click();
     await page.waitForURL('**/new/done**', { timeout: 15_000 });
     await expect(page.getByText(/Simulated/i)).toBeVisible();
@@ -269,7 +284,7 @@ test.describe('S5 — review and signing', () => {
   test('a wallet failure is explained and the draft survives it', async ({ page }) => {
     await reachReview(page);
     await sign(page);
-    await page.goto(`${page.url()}?mockFail=INSUFFICIENT_FUNDS`);
+    await mockWallet(page, 'INSUFFICIENT_FUNDS');
 
     await page.getByTestId('commit').click();
     await expect(

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { asUsdcAmount, usdc, type Bet, type UserId } from '@sporim/domain';
+import { asUsdcAmount, type Bet, type UserId } from '@sporim/domain';
 import { FIXTURE_IDS, makeBet, makeParty, makeReferee } from '@sporim/domain/testing';
 import {
   betRowSchema,
@@ -55,7 +55,7 @@ describe('bet round trip', () => {
     expect(roundTrip(bet)).toEqual(bet);
   });
 
-  it('loses nothing on a disputed bet carrying a claim and a bond', () => {
+  it('loses nothing on a disputed bet carrying a claim', () => {
     const bet = makeBet({
       state: 'disputed',
       claim: {
@@ -66,7 +66,6 @@ describe('bet round trip', () => {
       },
       dispute: {
         by: 'opponent',
-        bond: usdc(4),
         atSeconds: 1_788_701_000,
         refereeDeadlineSeconds: 1_789_305_800,
       },

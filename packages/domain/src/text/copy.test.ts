@@ -109,18 +109,29 @@ describe('no copy promises anyone a free ride', () => {
   const allCopy = [FORMAT_COPY, WIZARD_COPY, STATE_COPY, TRUST_COPY].flatMap(everyString);
 
   it('never claims a side risks nothing', () => {
-    // Disputing a result costs a bond, and `bondRouting` hands it to the other side when the
-    // referee disagrees — so a party with no stake still has money exposed. Saying otherwise
-    // is not a wording problem, it is a false statement about the product.
+    /*
+     * This used to be about the dispute bond, which put money at risk even for a side that
+     * staked none. The bond is gone (2026-09-04), so the ban survives on a different footing:
+     * these strings are shared across formats, and a blanket "you risk nothing" is false the
+     * moment the same line renders on a Bet. A promise that holds on one screen and not the
+     * next is worse than none.
+     */
     for (const line of allCopy) {
       expect(line, `"${line}" claims zero risk`).not.toMatch(/risks? nothing/i);
       expect(line, `"${line}" claims zero risk`).not.toMatch(/nothing (?:at stake|to lose)/i);
     }
   });
 
-  it('states what the dispute deposit actually does', () => {
-    expect(TRUST_COPY.disputeBond).toMatch(/deposit/i);
-    expect(TRUST_COPY.disputeBond).toMatch(/lose it/i);
+  /*
+   * The bond is gone, so the copy has one job left: say that disagreeing is free, and say
+   * what a silent referee means. Both halves are load-bearing — somebody who thinks objecting
+   * costs money will not object, and somebody who is not told about the refund will read a
+   * stalled bet as theft.
+   */
+  it('says disagreeing is free and what happens if the referee never rules', () => {
+    expect(TRUST_COPY.disputing).toMatch(/free/i);
+    expect(TRUST_COPY.disputing).toMatch(/money back/i);
+    expect(TRUST_COPY.disputing).not.toMatch(/deposit|bond/i);
   });
 
   it('describes Commit by what each side contributes, not by their exposure', () => {
