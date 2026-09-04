@@ -55,3 +55,6 @@ Thumbs.db
 
 # Incremental TS build info
 *.tsbuildinfo
+
+.vercel
+.env*.local
