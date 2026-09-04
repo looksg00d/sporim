@@ -12,6 +12,7 @@ import {
   standardRows,
   typeStyle,
 } from '@sporim/ui';
+import { AppHeader } from '@/features/nav/AppHeader';
 import { env, isMockChain } from '@/lib/env';
 
 /*
@@ -20,7 +21,7 @@ import { env, isMockChain } from '@/lib/env';
  * domain values rather than hand-typed numbers.
  */
 
-export default function HomePage() {
+export default async function HomePage() {
   const rows = standardRows({
     pot: usdc(40),
     deadlineLabel: 'Sun 23:59',
@@ -31,6 +32,13 @@ export default function HomePage() {
   return (
     <main style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
       <DevnetBanner />
+      {/*
+       * The header, not a bare wordmark: somebody arriving here with a session needs a way to
+       * their bets, and this is the page every link in the product eventually returns to. It
+       * reads a cookie on the server and pulls in no wallet SDK, so reel traffic on mobile
+       * data still pays nothing for it.
+       */}
+      <AppHeader />
 
       <div
         style={{
@@ -42,8 +50,6 @@ export default function HomePage() {
           backgroundImage: accentGlow(50, 18),
         }}
       >
-        <span style={{ ...typeStyle('wordmark'), color: color.ink }}>SPORIM</span>
-
         <div style={{ display: 'flex', flexDirection: 'column', gap: space.md, maxWidth: 620 }}>
           <span
             style={{ ...typeStyle('labelCaps'), color: color.accent, textTransform: 'uppercase' }}

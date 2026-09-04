@@ -341,10 +341,18 @@ export async function getBetByShortCode(
   });
 }
 
-/** Every bet the caller is on, newest first. One query per table, grouped in memory — not N+1. */
+/**
+ * Every bet the caller is on, newest first. One query per table, grouped in memory — not N+1.
+ *
+ * "On" includes refereeing one: a referee has a `participants` row, and the person asked to
+ * settle an argument needs somewhere to find it as much as the two arguing do. Each bet comes
+ * back with the caller's role for the same reason `getBetByShortCode` returns one — the list
+ * has to say whose turn it is, and that answer must not be recomputed from an identity the
+ * page would have to be handed separately.
+ */
 export async function listBetsForUser(
   privyDid: string,
-): Promise<Result<readonly Bet[], RepoError>> {
+): Promise<Result<readonly BetView[], RepoError>> {
   return withUser(privyDid, async (sql) => {
     const user = await requireCurrentUser(sql, privyDid);
     if (!user.ok) return user;
@@ -379,15 +387,17 @@ export async function listBetsForUser(
     const byBetClaim = groupBy(claims, (row) => claimRowSchema.parse(row));
     const byBetDispute = groupBy(disputes, (row) => disputeRowSchema.parse(row));
 
+    const viewer = { userId: user.value.id, wallet: user.value.wallet };
     return ok(
       betRows.map((row) => {
-        const bet = betRowSchema.parse(row);
-        return toBet({
-          bet,
-          participants: byBetParticipants.get(bet.id) ?? [],
-          claim: byBetClaim.get(bet.id)?.[0] ?? null,
-          dispute: byBetDispute.get(bet.id)?.[0] ?? null,
+        const parsed = betRowSchema.parse(row);
+        const bet = toBet({
+          bet: parsed,
+          participants: byBetParticipants.get(parsed.id) ?? [],
+          claim: byBetClaim.get(parsed.id)?.[0] ?? null,
+          dispute: byBetDispute.get(parsed.id)?.[0] ?? null,
         });
+        return { bet, role: resolveViewerRole(bet, viewer) };
       }),
     );
   });

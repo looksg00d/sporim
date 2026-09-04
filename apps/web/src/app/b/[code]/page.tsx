@@ -26,7 +26,7 @@ import {
   standardRows,
   typeStyle,
 } from '@sporim/ui';
-import { SignInButton } from '@/features/auth/SignInButton';
+import { SignInWall } from '@/features/auth/SignInWall';
 import { isMockChain } from '@/lib/env';
 import { whatHappensNext } from '@/features/bet/next-step';
 import { formatDeadlineShort, nowSeconds } from '@/lib/time';
@@ -326,19 +326,17 @@ function SettledFigures({ bet }: { readonly bet: Bet }) {
   );
 }
 
-function SignInWall({ code }: { readonly code: string }) {
+/**
+ * The code is deliberately absent from the wall. Printing "BET #ZZZZZZZZ" above "sign in"
+ * would confirm the shape of a code a stranger just guessed; the wall says the same thing for
+ * every eight-character string, real or not.
+ */
+function AnonymousWall() {
   return (
     <Shell>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: space.sm }}>
-        <span style={{ ...typeStyle('labelCaps'), color: color.accent }}>BET #{code}</span>
-        <h1 style={{ margin: 0, ...typeStyle('displaySm'), color: color.ink }}>
-          Sign in to see this bet.
-        </h1>
-        <p style={{ margin: 0, ...typeStyle('body'), color: color.inkSecondary }}>
-          A bet is only readable by the people on it, so we have to know which of them you are.
-        </p>
-      </div>
-      <SignInButton />
+      <SignInWall title="Sign in to see this bet.">
+        A bet is only readable by the people on it, so we have to know which of them you are.
+      </SignInWall>
     </Shell>
   );
 }
@@ -350,7 +348,7 @@ export default async function BetPage({ params }: { params: Promise<{ code: stri
   if (!isShortCode(code)) notFound();
 
   const privyDid = await currentPrivyDid();
-  if (!privyDid) return <SignInWall code={code} />;
+  if (!privyDid) return <AnonymousWall />;
 
   const found = await getBetByShortCode(privyDid, code);
   // NOT_FOUND covers both "no such bet" and "not yours", on purpose — see the note at the top.

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { DevnetBanner } from '@sporim/ui';
 import { AuthProvider } from '@/features/auth/AuthProvider';
+import { AppHeader } from '@/features/nav/AppHeader';
 import { isMockChain } from '@/lib/env';
 
 /**
@@ -15,6 +16,7 @@ export default function BetLayout({ children }: { readonly children: ReactNode }
   return (
     <AuthProvider>
       <DevnetBanner visible={isMockChain} />
+      <AppHeader />
       {children}
     </AuthProvider>
   );

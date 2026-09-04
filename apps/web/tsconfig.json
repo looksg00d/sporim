@@ -16,13 +16,14 @@
     "types": ["vitest/globals"]
   },
   "include": [
+    ".next-e2e/types/**/*.ts",
     "e2e",
     "next-env.d.ts",
     "next.config.ts",
     "playwright.config.ts",
     "src",
     "vitest.config.ts",
-    ".next-e2e/types/**/*.ts"
+    ".next/types/**/*.ts"
   ],
   // Both generated type directories are excluded, and `exclude` is what makes it stick —
   // Next re-adds the active one to `include` on every build.

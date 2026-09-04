@@ -8,9 +8,12 @@ import { useDraft } from '@/features/draft/DraftProvider';
 import { isMockChain } from '@/lib/env';
 
 /**
- * Locked in. Deliberately does not offer a share link yet: the bet page it would point at
- * lands in M2, and handing someone a link that 404s is worse than making them wait a
- * milestone. What this screen owes the user right now is proof the signature took.
+ * Locked in.
+ *
+ * It used to end here, and that was the dead end: proof the signature took, and no route to
+ * the bet it made. Somebody could create a bet, close the tab, and have no way back to it
+ * from anywhere in the product — which for a thing whose whole job is a deadline is the worst
+ * possible place to lose people. Now the bet is one tap away, and so is the list of them.
  */
 export function DoneScreen() {
   const code = useSearchParams().get('code');
@@ -56,9 +59,12 @@ export function DoneScreen() {
       ) : null}
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: space.sm, justifyContent: 'center' }}>
-        <PillLink href="/new/terms">Start another</PillLink>
-        <PillLink href="/" variant="secondary">
-          Home
+        {code ? <PillLink href={`/b/${code}`}>Open it</PillLink> : null}
+        <PillLink href="/me" variant={code ? 'secondary' : 'primary'}>
+          My bets
+        </PillLink>
+        <PillLink href="/new/terms" variant="secondary">
+          Start another
         </PillLink>
       </div>
     </main>

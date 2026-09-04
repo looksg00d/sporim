@@ -256,14 +256,27 @@ describeDb('bets repository', () => {
   it('lists every bet the caller is on and nothing else', async () => {
     const mine = unwrap(await listBetsForUser(didAlice));
     expect(mine.length).toBeGreaterThan(0);
-    expect(mine.every((bet) => bet.creator.userId === alice.id)).toBe(true);
+    expect(mine.every(({ bet }) => bet.creator.userId === alice.id)).toBe(true);
 
     const theirs = unwrap(await listBetsForUser(didSasha));
-    expect(theirs.map((bet) => bet.id).sort()).toEqual(
+    expect(theirs.map(({ bet }) => bet.id).sort()).toEqual(
       mine
-        .filter((bet) => bet.opponent?.userId === sasha.id)
-        .map((bet) => bet.id)
+        .filter(({ bet }) => bet.opponent?.userId === sasha.id)
+        .map(({ bet }) => bet.id)
         .sort(),
     );
+  });
+
+  /*
+   * The list has to say whose turn it is, so the role travels with each row. Getting this
+   * wrong is not cosmetic: `/me` decides what "needs you" from it, and a creator shown as an
+   * observer would simply never be told to act on their own bet.
+   */
+  it('says what the caller is on each of those bets', async () => {
+    const mine = unwrap(await listBetsForUser(didAlice));
+    expect(mine.every(({ role }) => role === 'creator')).toBe(true);
+
+    const theirs = unwrap(await listBetsForUser(didSasha));
+    expect(theirs.every(({ role }) => role === 'opponent')).toBe(true);
   });
 });
