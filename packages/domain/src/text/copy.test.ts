@@ -138,14 +138,59 @@ describe('no copy promises anyone a free ride', () => {
     expect(FORMAT_COPY.commit.who).toBe('Only you put money in.');
   });
 
+  /*
+   * These used to assert that certain phrases were present, and every one of them still was
+   * on 2026-09-05 — inside three sentences that had become false when the money rules were
+   * reversed the day before. `timeline` promised that a silent referee leaves the claim
+   * standing, and `refereeUnconfirmed` that disputing costs a deposit. Neither is true, both
+   * were live, and the suite was green.
+   *
+   * So these assert the claim rather than the wording: what a line may not say, and what it
+   * must. A rewrite that keeps the meaning passes; one that drifts back does not.
+   */
+  const refereeLines = [
+    TRUST_COPY.timeline,
+    TRUST_COPY.refereeConfirmed,
+    TRUST_COPY.refereeUnconfirmed,
+  ];
+
+  it('never charges for a disagreement, because nothing does any more', () => {
+    for (const line of allCopy) {
+      expect(line, `"${line}" still prices a dispute`).not.toMatch(/deposit|bond/i);
+    }
+  });
+
+  /*
+   * Sentence by sentence, because the two halves are both true and only their combination is
+   * a lie: silence *before* anyone objects does leave the claim standing — that is the 48-hour
+   * window — while silence *from the referee*, after an objection, refunds. A line may say
+   * either. No sentence may say both.
+   */
+  it('never says a silent referee leaves the claim standing', () => {
+    for (const line of refereeLines) {
+      for (const sentence of line.split(/(?<=[.!?])\s+/)) {
+        const conflates = /referee/i.test(sentence) && /\bstand(s|ing)?\b/i.test(sentence);
+        expect(conflates, `"${sentence}" contradicts refundExpired`).toBe(false);
+      }
+    }
+  });
+
+  it('always says where the money goes when the referee never rules', () => {
+    for (const line of refereeLines) {
+      expect(line, `"${line}" leaves a silent referee unexplained`).toMatch(
+        /money back|refunds you both/i,
+      );
+    }
+  });
+
   it('never promises a referee will decide without saying whether they agreed to', () => {
-    // The one thing a user must not be allowed to believe. Any line that says a referee rules
-    // has to carry the condition, because an unconfirmed one refunds both sides instead.
-    expect(TRUST_COPY.timeline).toMatch(/took the role/i);
-    expect(TRUST_COPY.timeline).toMatch(/refunds you both/i);
+    // A card that says only "Decided by: Anya" is a claim nobody has verified.
     expect(TRUST_COPY.refereeConfirmed).toMatch(/took the role/i);
     expect(TRUST_COPY.refereeUnconfirmed).toMatch(/not taken the role/i);
-    expect(TRUST_COPY.refereeUnconfirmed).toMatch(/refunds you both/i);
+  });
+
+  it('says plainly that disagreeing costs nothing', () => {
+    expect(TRUST_COPY.timeline).toMatch(/free/i);
   });
 
   it('tells a referee that the role bars them from taking a side', () => {

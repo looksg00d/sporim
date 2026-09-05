@@ -18,9 +18,10 @@ import { getBetByShortCode, openDispute, recordAction, submitClaim } from '@/ser
  *     call below runs `authorize`, which asks the same state machine the buttons were
  *     rendered from. A form for an action the caller may not take is refused on arrival, not
  *     because the page declined to draw it.
- *   * **The short code is a name, not a capability.** `getBetByShortCode` answers NOT_FOUND to
- *     anybody who is not on the bet, so holding the link buys a stranger nothing here. Taking
- *     the other side is a different flow with an authorization of its own, still unwritten.
+ *   * **Membership, not possession.** Every action here goes through `getBetByShortCode`,
+ *     which answers NOT_FOUND to anybody not on the bet — so holding the link buys a stranger
+ *     nothing in this file. Taking the other side is the one move authorized by the link
+ *     itself, and it lives in `accept.ts` with its own policies.
  *
  * They all redirect back to the page rather than returning a message. The page recomputes
  * state and actions from the bet, so one place decides what the person is looking at — the

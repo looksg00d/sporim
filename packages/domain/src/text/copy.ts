@@ -48,7 +48,7 @@ export const TRUST_COPY = {
   refund: 'Nobody agrees? Both refunded.',
   noBackingOut: 'No backing out.',
   timeline:
-    'After the deadline either of you claims the win. The other has 48 hours. Say nothing and the claim stands. If you disagree, the referee decides. A referee who took the role and then goes quiet for 7 days leaves the claim standing; one who never took it refunds you both.',
+    'After the deadline either of you claims the win. The other has 48 hours. Say nothing and the claim stands. Disagreeing is free, and then the referee decides. If the referee never does, you both get your money back after 7 days.',
   refereeRole:
     "The referee only appears if you two disagree. They can't take the money — only pick a winner or a draw. Ruling earns them 1% of the winnings, out of our fee, not on top of it.",
 
@@ -57,9 +57,10 @@ export const TRUST_COPY = {
    * the creator merely typed is not a referee. Whichever of these a screen shows, it must
    * show one — a bet card that says only "Decided by: Anya" is a claim nobody has verified.
    */
-  refereeConfirmed: 'They opened their link and took the role. If you two disagree, they decide.',
+  refereeConfirmed:
+    'They opened their link and took the role. If you two disagree, they decide — and if they never do, you both get your money back.',
   refereeUnconfirmed:
-    'They have not taken the role yet. Until they do, a disagreement after the deadline refunds you both — and disputing still costs the deposit.',
+    'They have not taken the role yet. Until they do, nobody can settle a disagreement — and one after the deadline refunds you both.',
 
   /** The /r/ screen: what is being asked, what it pays, and what it costs you to accept. */
   refereeInvite:

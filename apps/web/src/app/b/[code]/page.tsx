@@ -26,6 +26,7 @@ import {
   typeStyle,
 } from '@sporim/ui';
 import { SignInWall } from '@/features/auth/SignInWall';
+import { AcceptPanel } from '@/features/bet/AcceptPanel';
 import { isMockChain } from '@/lib/env';
 import { betUrl } from '@/features/bet/links';
 import { whatHappensNext } from '@/features/bet/next-step';
@@ -39,7 +40,7 @@ import {
   settleByTimeout,
 } from '@/server/actions/bet';
 import { currentPrivyDid } from '@/server/auth/session';
-import { getBetByShortCode } from '@/server/db/bets.repo';
+import { readBetByShortCode, type AcceptStatus } from '@/server/db/accept.repo';
 
 /**
  * `/b/[code]` — the bet itself, after it exists.
@@ -52,15 +53,13 @@ import { getBetByShortCode } from '@/server/db/bets.repo';
  *
  * ## Who can see it
  *
- * Participants. The short code names a bet; it does not authorize reading one, so
- * `getBetByShortCode` answers NOT_FOUND to everybody else and this page renders the same
- * not-found for a stranger as for a code that was never minted. That is deliberate: the
- * alternative leaks which codes exist.
+ * Whoever holds the code, since `0011`. It used to be participants only — which was correct
+ * about authorization and fatal in practice, because it meant the link a creator pasted into a
+ * chat answered NOT_FOUND to the one person it was for. The code is now a capability, opening
+ * exactly one bet, and opening it to accept only while it is still `open`.
  *
- * The cost is that the link the creator sends to their friend does not yet work for that
- * friend — taking the other side needs an authorization for somebody who is not on the bet
- * yet, the same shape the referee invitation solved in `0004`, and it is not written. Until
- * it is, this page belongs to the people already on the bet.
+ * A code that names nothing still renders the same not-found as a malformed one. That has not
+ * changed and must not: the alternative is a page that tells a guesser which codes are real.
  *
  * ## Rendered on the server
  *
@@ -152,9 +151,9 @@ function OutcomeButton({
 /**
  * The moves, drawn from `allowedActions` and nothing else.
  *
- * Two are deliberately not rendered as buttons. `accept` cannot be honoured yet — a stranger
- * cannot even read this page — and drawing it would be a promise the server breaks. `share`
- * needs a clipboard, which needs a client component; the link is printed instead, which works
+ * `accept` is not among them, and is not drawn here at all: taking the other side needs a
+ * signature, so it gets a panel of its own rather than a button in a list. `share` needs a
+ * clipboard, which needs a client component; the link is printed instead, which works
  * everywhere and can be long-pressed on a phone.
  */
 function Actions({
@@ -327,19 +326,17 @@ function SettledFigures({ bet }: { readonly bet: Bet }) {
 }
 
 /**
- * The code is deliberately absent from the wall. Printing "BET #ZZZZZZZZ" above "sign in"
- * would confirm the shape of a code a stranger just guessed; the wall says the same thing for
- * every eight-character string, real or not.
+ * What the panel under the card says, for every state that is not "you may take this".
+ *
+ * `open` is absent on purpose: that case renders `AcceptPanel` instead, and a status with two
+ * renderings would eventually grow a third that contradicts one of them.
  */
-function AnonymousWall() {
-  return (
-    <Shell>
-      <SignInWall title="Sign in to see this bet.">
-        A bet is only readable by the people on it, so we have to know which of them you are.
-      </SignInWall>
-    </Shell>
-  );
-}
+const STATUS_NOTE: Record<Exclude<AcceptStatus, 'open' | 'party' | 'yours'>, string> = {
+  anonymous: 'Sign in to take the other side of this one.',
+  taken: 'Somebody already took this one. Nothing here needs you.',
+  expired: 'Nobody took this one in time, so the stake goes back.',
+  closed: 'This one is over.',
+};
 
 export default async function BetPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
@@ -348,16 +345,16 @@ export default async function BetPage({ params }: { params: Promise<{ code: stri
   if (!isShortCode(code)) notFound();
 
   const privyDid = await currentPrivyDid();
-  if (!privyDid) return <AnonymousWall />;
+  const now = nowSeconds();
 
-  const found = await getBetByShortCode(privyDid, code);
-  // NOT_FOUND covers both "no such bet" and "not yours", on purpose — see the note at the top.
+  const found = await readBetByShortCode(code, privyDid, now);
+  // A code nobody minted and a malformed one answer alike, so the page is never an oracle for
+  // which codes are real.
   if (!found.ok) notFound();
 
   // The role comes back with the bet: it is what decided we were allowed to answer at all, so
   // recomputing it here would be a second opinion nobody asked for.
-  const { bet, role } = found.value;
-  const now = nowSeconds();
+  const { bet, role, status } = found.value;
   const actions = allowedActions(bet, role, now);
   const pot = addUsdc(bet.stakeCreator, bet.stakeOpponent);
   const settled = bet.state === 'resolved' || bet.state === 'refunded';
@@ -385,6 +382,16 @@ export default async function BetPage({ params }: { params: Promise<{ code: stri
       <p style={{ margin: 0, ...typeStyle('body'), color: color.ink }}>
         {whatHappensNext(bet, role, now)}
       </p>
+
+      {status === 'open' ? (
+        <AcceptPanel code={code} stakeLabel={`${formatUsdc(bet.stakeCreator)} USDC`} />
+      ) : status === 'anonymous' ? (
+        <SignInWall title="Take the other side?">{STATUS_NOTE.anonymous}</SignInWall>
+      ) : status !== 'party' && status !== 'yours' ? (
+        <p style={{ margin: 0, ...typeStyle('bodySm'), color: color.inkSecondary }}>
+          {STATUS_NOTE[status]}
+        </p>
+      ) : null}
 
       {settled ? (
         <SettledFigures bet={bet} />

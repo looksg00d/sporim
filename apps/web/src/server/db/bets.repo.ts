@@ -96,7 +96,7 @@ export async function loadBet(sql: DbTransaction, betId: BetId): Promise<Bet | n
   });
 }
 
-interface Caller {
+export interface Caller {
   readonly user: UserRecord;
   readonly bet: Bet;
   readonly role: ViewerRole;
@@ -109,12 +109,13 @@ interface Caller {
  * A stranger gets `NOT_FOUND`, never `FORBIDDEN`: telling them the bet exists but is not
  * theirs turns a guessed id into a membership oracle.
  *
- * Which is also why `accept` cannot go through here. The person accepting is by definition
- * not yet on the bet, so both this gate and the policies refuse them — correctly, because
- * what authorizes them is possession of the link, and no part of this layer models that yet.
- * The accept flow brings its own repository function and its own policy (see
- * `0003_participant_insert_scope.sql`); until then `recordAction(…, 'accept', …)` will always
- * answer NOT_FOUND, and it should.
+ * Which is also why `accept` does not go through here, and still must not. The person
+ * accepting is by definition not yet on the bet, so this gate refuses them — correctly, since
+ * what authorizes them is possession of the link, which this function has no way to see. That
+ * flow lives in `accept.repo.ts` with `0011`'s policies underneath it, exactly as
+ * `0003_participant_insert_scope.sql` asked. `recordAction(…, 'accept', …)` answers NOT_FOUND
+ * and should keep answering it: a second door into the same transition is a second place to
+ * get the rules wrong.
  */
 async function authorize(
   sql: DbTransaction,
@@ -137,7 +138,13 @@ async function authorize(
   return ok({ user: user.value, bet, role });
 }
 
-async function appendEvent(
+/**
+ * Exported for `accept.repo.ts`, for the same reason `loadBet` is: a capability-based flow
+ * makes the same transitions and its audit rows must be indistinguishable from these. One
+ * writer, one shape — a second `insert into bet_events` somewhere else is a second chance to
+ * record a move differently from the way it happened.
+ */
+export async function appendEvent(
   sql: DbTransaction,
   input: {
     readonly betId: BetId;
@@ -310,10 +317,10 @@ export interface BetView {
 /**
  * The same bet, reached by the string that gets shared rather than by its uuid.
  *
- * Membership still decides what comes back: the short code is how a link names a bet, not a
- * capability to read one, and the policies answer to `app.user_id` either way. Somebody who
- * merely holds the link gets NOT_FOUND here — taking the other side is a different flow with
- * an authorization of its own, still unwritten (0003).
+ * Membership decides what comes back here, and that is now the *narrow* of the two ways in:
+ * `accept.repo.ts` reads the same bet through the code itself, for somebody who is not on it
+ * yet. Use this one where membership is the question — a participant's own view — and that one
+ * where possession of the link is.
  *
  * The role travels back with the bet because it was computed here to decide whether to answer
  * at all, and because the alternative is every page resolving it again from an identity it
