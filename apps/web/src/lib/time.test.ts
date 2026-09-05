@@ -55,6 +55,22 @@ describe('deadlinePresets', () => {
     expect(new Set(at).size).toBe(at.length);
   });
 
+  /*
+   * Which chips exist depends on the day, and three of the four can vanish: "Tonight" goes
+   * late in the evening, "Sunday" collides with "Tomorrow" on a Saturday, and "In a week"
+   * collides with "Sunday" on a Sunday. Only "Tomorrow" is unconditional.
+   *
+   * That is what the e2e suite now clicks, after spending a Saturday failing on a hard-coded
+   * "Sunday" — and after this very test caught the first attempted fix, which would have moved
+   * the same failure to Sundays. It runs over a whole week for that reason.
+   */
+  it.each([0, 1, 2, 3, 4, 5, 6])('always offers "Tomorrow" — weekday %i', (weekday) => {
+    // 2026-09-06 is a Sunday, so adding the index walks every day of the week.
+    const noon = Math.floor(new Date(2026, 8, 6 + weekday, 12, 0, 0, 0).getTime() / 1000);
+    const ids = deadlinePresets(noon).map((preset) => preset.id);
+    expect(ids).toContain('tomorrow');
+  });
+
   it('returns chips in ascending order', () => {
     const at = deadlinePresets(TUESDAY_NOON).map((p) => p.atSeconds);
     expect([...at].sort((a, b) => a - b)).toEqual(at);

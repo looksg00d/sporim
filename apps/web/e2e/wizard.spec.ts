@@ -13,6 +13,21 @@ import { expect, test, type Page } from '@playwright/test';
 const TERMS = 'Ты не пробежишь 10 км до воскресенья.';
 
 const next = (page: Page) => page.getByRole('button', { name: 'Next', exact: true });
+
+/**
+ * Picks a deadline without naming a weekday.
+ *
+ * This used to click "Sunday", which works six days a week. On a Saturday the Sunday preset
+ * falls on the same instant as "Tomorrow" and `deadlinePresets` drops the duplicate — correct
+ * behaviour, pinned by its own unit test — so the button simply was not there, and thirty
+ * specs failed with a timeout that said nothing about why.
+ *
+ * "Tomorrow" is the only chip that survives every day. "Tonight" goes late in the evening,
+ * "Sunday" collides with "Tomorrow" on a Saturday, and "In a week" collides with "Sunday" on a
+ * Sunday — which is not a guess: it is what the unit test caught when this helper first
+ * reached for "In a week" instead.
+ */
+const pickDeadline = (page: Page) => page.getByRole('button', { name: 'Tomorrow' }).click();
 const formatCard = (page: Page, label: string) =>
   page.getByRole('button', { name: new RegExp(`^${label}`) });
 
@@ -46,7 +61,7 @@ async function sign(page: Page) {
 
 async function reachReview(page: Page) {
   await reachDeadline(page);
-  await page.getByRole('button', { name: 'Sunday' }).click();
+  await pickDeadline(page);
   await next(page).click();
   await page.waitForURL('**/new/judge');
   await next(page).click();
@@ -159,7 +174,7 @@ test.describe('S3 — deadline', () => {
 test.describe('S4 — judge', () => {
   test('refuses a referee who is the other side of the bet', async ({ page }) => {
     await reachDeadline(page);
-    await page.getByRole('button', { name: 'Sunday' }).click();
+    await pickDeadline(page);
     await next(page).click();
     await page.waitForURL('**/new/judge');
 
@@ -174,7 +189,7 @@ test.describe('S4 — judge', () => {
 
   test('mutual confirmation needs no referee', async ({ page }) => {
     await reachDeadline(page);
-    await page.getByRole('button', { name: 'Sunday' }).click();
+    await pickDeadline(page);
     await next(page).click();
     await page.waitForURL('**/new/judge');
     await expect(next(page)).toBeEnabled();
@@ -240,7 +255,7 @@ test.describe('S5 — review and signing', () => {
     // disagreement happened right now it would refund both sides, not go to Anya — so the
     // screen has to say so before the signature, not after.
     await reachDeadline(page);
-    await page.getByRole('button', { name: 'Sunday' }).click();
+    await pickDeadline(page);
     await next(page).click();
     await page.waitForURL('**/new/judge');
     await page.fill('#referee', '@anya');
@@ -329,7 +344,7 @@ test.describe('vocabulary', () => {
         await page.getByRole('button', { name: '$25', exact: true }).click();
         if (path !== '/new/format') {
           await next(page).click();
-          await page.getByRole('button', { name: 'Sunday' }).click();
+          await pickDeadline(page);
           if (path !== '/new/deadline') await next(page).click();
         }
       }

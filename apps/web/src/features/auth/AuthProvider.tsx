@@ -61,27 +61,50 @@ const STUBBED: AuthState = {
 };
 
 /**
- * Email first, wallet alongside it — the decision from 2026-09-03, and the reason is the
- * traffic: a reel opens in Instagram's in-app browser, where there are no extensions and a
- * deep link into Phantom loses the tab. Somebody who already has Phantom is one click away
- * from it in the same modal; `showWalletLoginFirst` stays false so the person who does not is
- * never shown a dead end first.
+ * Phantom first, email behind it — the decision from 2026-09-05, reversing the ordering from
+ * two days earlier.
  *
- * `createOnLogin: 'users-without-wallets'` for the same reason: the person who arrived with a
- * wallet keeps theirs — and, unlike a fresh embedded one, theirs already holds USDC.
+ * The reasoning is the $25. Somebody arriving with Phantom already has USDC in it: connect,
+ * sign, done, in seconds. Somebody arriving with nothing has to buy USDC on Solana at an
+ * amount where the on-ramp fee can be a large share of the stake — a path we have not built
+ * and might never. Putting the fast path first is not a preference between equals.
+ *
+ * `showWalletLoginFirst` alone would only hoist the *wallet section*; `walletList` is what
+ * names the buttons inside it and their order, and Privy's default is Ethereum-shaped
+ * (metamask, coinbase, rainbow, wallet_connect). Both are set, so Phantom is the first thing
+ * on the first screen rather than something found one tap in.
+ *
+ * `detected_solana_wallets` sits second deliberately — it is the catch-all for whatever
+ * extension the browser actually has, so somebody on Solflare or Backpack is not made to feel
+ * the product was built for a wallet they do not use.
+ *
+ * `loginMethodsAndOrder` would place 'phantom' even more literally, above every social
+ * option, and is not used: Privy marks it deprecated and warns that it overrides their
+ * designed defaults. Two supported fields beat one deprecated one.
+ *
+ * **What this does not fix.** Instagram's in-app browser injects no wallet, because it has no
+ * extensions — so on the screen most reel traffic lands on, the Phantom button has nothing to
+ * connect to. The way out is Phantom's Browse deeplink, which opens this site inside
+ * Phantom's own browser. That is a separate piece of work and it is not written yet; see
+ * `docs/NEXT-SESSION.md`. Email staying in the modal is what keeps that case from being a
+ * dead end in the meantime.
+ *
+ * `createOnLogin: 'users-without-wallets'`: whoever arrives with a wallet keeps theirs — and
+ * unlike a fresh embedded one, theirs already holds money.
  *
  * Themed from the design tokens rather than from a copy of the hex values, so the modal and
  * the page cannot drift apart.
  */
 const privyConfig: PrivyClientConfig = {
-  loginMethods: ['email', 'wallet'],
+  loginMethods: ['wallet', 'email'],
   appearance: {
     theme: color.canvas,
     accentColor: color.accent,
     // Solana only. Offering an Ethereum wallet here would be offering a wallet that cannot
     // hold the stake.
     walletChainType: 'solana-only',
-    showWalletLoginFirst: false,
+    showWalletLoginFirst: true,
+    walletList: ['phantom', 'detected_solana_wallets', 'solflare', 'backpack'],
   },
   embeddedWallets: { solana: { createOnLogin: 'users-without-wallets' } },
   externalWallets: { solana: { connectors: toSolanaWalletConnectors() } },
