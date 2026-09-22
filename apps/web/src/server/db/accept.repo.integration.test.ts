@@ -190,6 +190,31 @@ describeDb('accepting by link', () => {
       );
     });
 
+    it('seats exactly one of two people who open the link at the same moment', async () => {
+      // Sequentially this is the test above; simultaneously it used to be two INSERTs racing a
+      // unique key, and whoever lost got an exception rather than an answer. Both statements —
+      // the seat and the transition — now say the same thing when somebody got there first.
+      const bet = await openBet();
+
+      const results = await Promise.all([
+        acceptBet(didSasha, bet.shortCode, SIGNATURE, NOW + 60),
+        acceptBet(didStranger, bet.shortCode, typedSignature('nobody'), NOW + 60),
+      ]);
+
+      expect(results.filter((result) => result.ok)).toHaveLength(1);
+      const refused = results.find((result) => !result.ok);
+      if (refused && !refused.ok) expect(refused.error.code).toBe('CONFLICT');
+
+      const seats = await owner`
+        select count(*)::int as n from participants where bet_id = ${bet.id} and role = 'opponent'
+      `;
+      expect(seats[0]?.n).toBe(1);
+      const accepts = await owner`
+        select count(*)::int as n from bet_events where bet_id = ${bet.id} and action = 'accept'
+      `;
+      expect(accepts[0]?.n).toBe(1);
+    });
+
     it('will not let the creator take their own other side', async () => {
       const bet = await openBet();
       const result = await acceptBet(didAlice, bet.shortCode, SIGNATURE, NOW + 60);

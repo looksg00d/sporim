@@ -12,7 +12,7 @@ import {
 } from '@sporim/domain';
 import { nowSeconds as currentSeconds } from '@/lib/time';
 import { signatureToJson, toTimestamp } from './bet-row';
-import { appendEvent, loadBet } from './bets.repo';
+import { applyTransition, asConflict, loadBet } from './bets.repo';
 import { withShortCode, type DbTransaction } from './client';
 import { forbidden, notFound, type RepoError } from './errors';
 import { requireCurrentUser } from './users.repo';
@@ -154,85 +154,89 @@ export async function acceptBet(
     return err({ code: 'INVALID', issues: ['a signature is required to take the other side'] });
   }
 
-  return withShortCode(code, privyDid, async (sql) => {
-    const user = await requireCurrentUser(sql, privyDid);
-    if (!user.ok) return user;
+  return asConflict(
+    withShortCode(code, privyDid, async (sql) => {
+      const user = await requireCurrentUser(sql, privyDid);
+      if (!user.ok) return user;
 
-    const betId = await codeBetId(sql);
-    if (!betId) return err(notFound('bet'));
+      const betId = await codeBetId(sql);
+      if (!betId) return err(notFound('bet'));
 
-    const bet = await loadBet(sql, betId);
-    if (!bet) return err(notFound('bet'));
+      const bet = await loadBet(sql, betId);
+      if (!bet) return err(notFound('bet'));
 
-    // Said here as well as in the policy, because a policy refusal arrives as zero rows
-    // written and this person deserves the reason rather than a shrug.
-    const role = resolveViewerRole(bet, { userId: user.value.id, wallet: user.value.wallet });
-    if (role === 'opponent') return ok(bet);
-    if (role !== 'observer') {
-      return err(forbidden('somebody already on this bet cannot take the other side'));
-    }
-    if (bet.state !== 'open') {
-      return err({
-        code: 'CONFLICT',
-        reason: bet.state === 'active' ? 'somebody already took this one' : 'this bet is closed',
+      // Said here as well as in the policy, because a policy refusal arrives as zero rows
+      // written and this person deserves the reason rather than a shrug.
+      const role = resolveViewerRole(bet, { userId: user.value.id, wallet: user.value.wallet });
+      if (role === 'opponent') return ok(bet);
+      if (role !== 'observer') {
+        return err(forbidden('somebody already on this bet cannot take the other side'));
+      }
+      if (bet.state !== 'open') {
+        return err({
+          code: 'CONFLICT',
+          reason: bet.state === 'active' ? 'somebody already took this one' : 'this bet is closed',
+        });
+      }
+      if (atSeconds >= bet.acceptDeadlineSeconds) {
+        return err({ code: 'CONFLICT', reason: 'this one was not taken in time' });
+      }
+
+      /*
+       * The name on the card. A typed signature *is* a name and the person chose it here, so it
+       * wins; otherwise the handle the creator typed stands, and only then the profile. What is
+       * never done is overwriting a name the creator wrote with something else silently — the
+       * same restraint `confirmReferee` shows by not touching `display_name` at all.
+       */
+      const displayName =
+        signature.kind === 'typed'
+          ? signature.name
+          : (bet.opponent?.displayName ?? user.value.displayName);
+
+      const signed = {
+        user_id: user.value.id,
+        wallet_address: user.value.wallet,
+        display_name: displayName,
+        signature: sql.json(signatureToJson(signature)),
+        signed_at: toTimestamp(atSeconds),
+        confirmed_at: toTimestamp(atSeconds),
+      };
+
+      // Two arms, chosen by whether the creator named anybody. Not `on conflict do update`: that
+      // would need the INSERT and UPDATE policies to pass together, and for a non-participant
+      // neither the old ones do.
+      const written = bet.opponent
+        ? await sql<RawRow[]>`
+            update participants set ${sql(signed)}
+            where bet_id = ${betId} and role = 'opponent'
+            returning id
+          `
+        : await sql<RawRow[]>`
+            insert into participants ${sql({ bet_id: betId, role: 'opponent', ...signed })}
+            returning id
+          `;
+      if (written.length === 0) return err(forbidden('this bet cannot be taken'));
+
+      // Separate statement, and that is what makes it legal: `bets_update_participant` asks
+      // `app_is_participant`, which now sees the row written above. The mirror of the trap
+      // `0008` documents, where a RETURNING row was judged inside the statement creating it.
+      //
+      // It goes through the one writer, so this seat is taken under the same guard as every
+      // other move: `from: 'open'` fails if somebody else got here first, and the participant
+      // row above goes back with it. The unique key on (bet_id, role) already refused a second
+      // opponent; this refuses a second *transition*, which is the part the audit trail sees.
+      await applyTransition(sql, {
+        betId,
+        action: 'accept',
+        from: 'open',
+        to: 'active',
+        actor: { user: user.value, bet, role: 'opponent' },
       });
-    }
-    if (atSeconds >= bet.acceptDeadlineSeconds) {
-      return err({ code: 'CONFLICT', reason: 'this one was not taken in time' });
-    }
 
-    /*
-     * The name on the card. A typed signature *is* a name and the person chose it here, so it
-     * wins; otherwise the handle the creator typed stands, and only then the profile. What is
-     * never done is overwriting a name the creator wrote with something else silently — the
-     * same restraint `confirmReferee` shows by not touching `display_name` at all.
-     */
-    const displayName =
-      signature.kind === 'typed'
-        ? signature.name
-        : (bet.opponent?.displayName ?? user.value.displayName);
+      const after = await loadBet(sql, betId);
+      if (!after) return err(notFound('bet'));
 
-    const signed = {
-      user_id: user.value.id,
-      wallet_address: user.value.wallet,
-      display_name: displayName,
-      signature: sql.json(signatureToJson(signature)),
-      signed_at: toTimestamp(atSeconds),
-      confirmed_at: toTimestamp(atSeconds),
-    };
-
-    // Two arms, chosen by whether the creator named anybody. Not `on conflict do update`: that
-    // would need the INSERT and UPDATE policies to pass together, and for a non-participant
-    // neither the old ones do.
-    const written = bet.opponent
-      ? await sql<RawRow[]>`
-          update participants set ${sql(signed)}
-          where bet_id = ${betId} and role = 'opponent'
-          returning id
-        `
-      : await sql<RawRow[]>`
-          insert into participants ${sql({ bet_id: betId, role: 'opponent', ...signed })}
-          returning id
-        `;
-    if (written.length === 0) return err(forbidden('this bet cannot be taken'));
-
-    // Separate statement, and that is what makes it legal: `bets_update_participant` asks
-    // `app_is_participant`, which now sees the row written above. The mirror of the trap
-    // `0008` documents, where a RETURNING row was judged inside the statement creating it.
-    await sql`update bets set state = 'active'::bet_state where id = ${betId}`;
-
-    const after = await loadBet(sql, betId);
-    if (!after) return err(notFound('bet'));
-
-    await appendEvent(sql, {
-      betId,
-      action: 'accept',
-      fromState: 'open',
-      toState: 'active',
-      actor: { user: user.value, bet: after, role: 'opponent' },
-      tx: null,
-    });
-
-    return ok(after);
-  });
+      return ok(after);
+    }),
+  );
 }

@@ -4,13 +4,17 @@ import {
   CLAIM_WINDOW_SECONDS,
   SECONDS_PER_DAY,
   drawnSignature,
+  ok,
   unwrap,
   usdc,
   type Bet,
 } from '@sporim/domain';
 import { fixtureBet, hasDatabase, ownerSql, purge, uniquePrivyDid } from '@/testing/db';
-import { closeDb } from './client';
+import { toClaimInsert } from './bet-row';
+import { closeDb, withUser } from './client';
 import {
+  applyTransition,
+  asConflict,
   createBet,
   getBet,
   listBetsForUser,
@@ -219,6 +223,106 @@ describeDb('bets repository', () => {
     `;
     expect(events.map((row) => row.action)).toEqual(['submitClaim', 'disputeClaim']);
     expect(events.map((row) => row.to_state)).toEqual(['claimed', 'disputed']);
+  });
+
+  /*
+   * The guard the single writer exists for, tested where it can actually be observed.
+   *
+   * Two real calls racing is not that test: whichever of them reads second usually reads the
+   * *settled* state and is turned away by the state machine long before the write, so the
+   * suite stays green with the guard deleted — a green that means "the schedule was kind",
+   * which is the shape of green this repository has been burned by twice.
+   *
+   * So the losing transaction is staged instead of raced. Everything it does is correct for a
+   * bet that is still `active`; by the time it writes, it is not.
+   */
+  it('writes nothing when the bet moved between the read and the write', async () => {
+    const bet = await makeActiveBet();
+
+    const stale = await asConflict(
+      withUser(didAlice, async (sql) => {
+        const claim = {
+          outcome: 'creator_wins' as const,
+          by: 'creator' as const,
+          atSeconds: AFTER_DEADLINE,
+          windowEndsAtSeconds: AFTER_DEADLINE + CLAIM_WINDOW_SECONDS,
+        };
+        // The child row first, exactly as `submitClaim` writes it — this is the row that must
+        // not survive a transition that did not happen.
+        await sql`insert into claims ${sql(toClaimInsert(bet.id, claim, alice.id, null))}`;
+        await applyTransition(sql, {
+          betId: bet.id,
+          action: 'submitClaim',
+          // The state this transaction believes it read. The bet is `active`.
+          from: 'open',
+          to: 'claimed',
+          actor: null,
+        });
+        return ok(true);
+      }),
+    );
+
+    expect(stale.ok).toBe(false);
+    if (!stale.ok) expect(stale.error.code).toBe('CONFLICT');
+
+    // Nothing of it is left: not the state, not the audit row, not the claim.
+    expect(unwrap(await getBet(didAlice, bet.id)).state).toBe('active');
+    const events = await owner`select action from bet_events where bet_id = ${bet.id}`;
+    expect(events).toHaveLength(0);
+    const claims = await owner`select id from claims where bet_id = ${bet.id}`;
+    expect(claims).toHaveLength(0);
+  });
+
+  it('lets exactly one of two simultaneous timeouts through, and records it once', async () => {
+    // The same guard from the outside. Whether the loser is stopped by the state machine or by
+    // the guard depends on the schedule, so this asserts only the outcome both must produce.
+    const bet = await makeActiveBet();
+    await submitClaim(didAlice, bet.id, { outcome: 'creator_wins' }, AFTER_DEADLINE);
+    const afterWindow = AFTER_DEADLINE + CLAIM_WINDOW_SECONDS;
+
+    const results = await Promise.all([
+      recordAction(didSasha, bet.id, 'settleUncontested', { outcome: 'creator_wins' }, afterWindow),
+      recordAction(didAnya, bet.id, 'settleUncontested', { outcome: 'creator_wins' }, afterWindow),
+    ]);
+
+    expect(results.filter((result) => result.ok)).toHaveLength(1);
+    const refused = results.find((result) => !result.ok);
+    if (refused && !refused.ok) expect(['CONFLICT', 'FORBIDDEN']).toContain(refused.error.code);
+
+    const events = await owner`
+      select action from bet_events where bet_id = ${bet.id} and action = 'settleUncontested'
+    `;
+    expect(events).toHaveLength(1);
+    expect(unwrap(await getBet(didAlice, bet.id)).state).toBe('resolved');
+  });
+
+  it('refunds both sides at once when nobody was named to decide', async () => {
+    const bet = unwrap(
+      await createBet(
+        didAlice,
+        { bet: fixtureBet({ creatorId: alice.id, opponentId: sasha.id }, { state: 'active' }) },
+        NOW,
+      ),
+    );
+    createdBetIds.push(bet.id);
+    expect(bet.referee).toBeNull();
+    await submitClaim(didAlice, bet.id, { outcome: 'creator_wins' }, AFTER_DEADLINE);
+
+    const refunded = unwrap(await openDispute(didSasha, bet.id, {}, AFTER_DEADLINE + 60));
+    expect(refunded.state).toBe('refunded');
+    expect(refunded.outcome).toBeNull();
+
+    // Nobody is going to rule, so there is no dispute to keep open: no referee deadline to
+    // store, and the audit row is the whole record of who objected.
+    const disputes = await owner`select id from disputes where bet_id = ${bet.id}`;
+    expect(disputes).toHaveLength(0);
+    const events = await owner`
+      select action, from_state, to_state from bet_events where bet_id = ${bet.id} order by id
+    `;
+    expect(events.map((row) => [row.action, row.from_state, row.to_state])).toEqual([
+      ['submitClaim', 'active', 'claimed'],
+      ['disputeClaim', 'claimed', 'refunded'],
+    ]);
   });
 
   it('resolves a dispute the referee rules on, and names the action in the audit', async () => {

@@ -9,6 +9,7 @@ import {
   roleToSide,
   type Bet,
   type BetAction,
+  type BetState,
   type BetId,
   type Claim,
   type Dispute,
@@ -410,6 +411,114 @@ export async function listBetsForUser(
   });
 }
 
+/**
+ * A transition that did not happen because the bet had already moved.
+ *
+ * Thrown rather than returned, and that is the point: by the time a transition is attempted the
+ * caller may already have written a child row — a claim, a dispute, the opponent's participant
+ * row — and those writes are only correct if the transition lands. An `err` would commit them
+ * anyway, because `inContext` resolves and the transaction with it. Throwing rolls the whole
+ * thing back, and `asConflict` turns it into the refusal the caller expects.
+ */
+class TransitionConflict extends Error {
+  constructor(
+    readonly action: BetAction,
+    readonly expected: BetState,
+  ) {
+    super(`${action} expected the bet to still be ${expected}`);
+    this.name = 'TransitionConflict';
+  }
+}
+
+/**
+ * `participants_one_row_per_role` (0001) is the same race one statement earlier: two people
+ * opening the same link both find the seat empty, and the second INSERT loses. Detected by
+ * constraint name, like `isShortCodeCollision` in `create-bet.ts`, because counting rows cannot
+ * tell a lost race from a bug.
+ */
+function isSeatTaken(cause: unknown): boolean {
+  if (typeof cause !== 'object' || cause === null) return false;
+  const error = cause as { readonly code?: unknown; readonly constraint_name?: unknown };
+  return (
+    error.code === '23505' &&
+    typeof error.constraint_name === 'string' &&
+    error.constraint_name.includes('participants_one_row_per_role')
+  );
+}
+
+/**
+ * Catches the throw above *outside* the transaction, so the rollback has already happened.
+ *
+ * Exported for `accept.repo.ts`, for the same reason `applyTransition` and `appendEvent` are:
+ * a capability-based flow makes the same transitions and must fail the same way. Losing a race
+ * is an expected outcome of a link two people have, so it leaves as data — and it says the same
+ * thing whichever of the two statements caught it.
+ */
+export async function asConflict<T>(
+  run: Promise<Result<T, RepoError>>,
+): Promise<Result<T, RepoError>> {
+  try {
+    return await run;
+  } catch (error) {
+    if (error instanceof TransitionConflict) {
+      return err({ code: 'CONFLICT', reason: error.message });
+    }
+    if (isSeatTaken(error)) {
+      return err({ code: 'CONFLICT', reason: 'somebody already took this one' });
+    }
+    throw error;
+  }
+}
+
+export interface TransitionInput {
+  readonly betId: BetId;
+  readonly action: BetAction;
+  /** The state the caller read and authorized against. The write happens only if it still holds. */
+  readonly from: BetState;
+  readonly to: BetState;
+  readonly actor: Caller | null;
+  /** Required exactly when the action resolves the bet; ignored otherwise. */
+  readonly outcome?: Outcome | null;
+  readonly tx?: string | null;
+}
+
+/**
+ * The one place a bet changes state.
+ *
+ * Every move — accept, claim, dispute, rule, the permissionless timeouts — is the same three
+ * things: check the bet is still where the caller thought it was, move it, and record what
+ * moved it. Four functions used to do those three things four times, and none of them did the
+ * first one: they read the state in `authorize`, then wrote unconditionally. Two people
+ * pressing a permissionless timeout at the same moment both passed, both wrote, and the audit
+ * grew two rows for one transition. With the chain wired up that would be two transactions.
+ *
+ * The `where state = from` is what closes it: Postgres serialises the two updates, the second
+ * matches no row, and its whole transaction — child rows included — is rolled back by the
+ * throw. One writer, one guard, one event.
+ */
+export async function applyTransition(sql: DbTransaction, input: TransitionInput): Promise<void> {
+  const txColumn = txColumnFor(input.action);
+  const moved = await sql<RawRow[]>`
+    update bets set
+      state = ${input.to}::bet_state,
+      outcome = coalesce(${input.outcome ?? null}::bet_outcome, outcome),
+      accept_tx = coalesce(${txColumn === 'accept_tx' ? (input.tx ?? null) : null}, accept_tx),
+      settle_tx = coalesce(${txColumn === 'settle_tx' ? (input.tx ?? null) : null}, settle_tx)
+    where id = ${input.betId} and state = ${input.from}::bet_state
+    returning id
+  `;
+  if (moved.length === 0) throw new TransitionConflict(input.action, input.from);
+
+  await appendEvent(sql, {
+    betId: input.betId,
+    action: input.action,
+    fromState: input.from,
+    toState: input.to,
+    actor: input.actor,
+    tx: input.tx ?? null,
+  });
+}
+
 export interface RecordActionOptions {
   /** Required exactly when the action resolves the bet; ignored otherwise. */
   readonly outcome?: Outcome;
@@ -430,37 +539,30 @@ export async function recordAction(
   options: RecordActionOptions = {},
   atSeconds: number = currentSeconds(),
 ): Promise<Result<Bet, RepoError>> {
-  return withUser(privyDid, async (sql) => {
-    const caller = await authorize(sql, privyDid, betId, action, atSeconds);
-    if (!caller.ok) return caller;
+  return asConflict(
+    withUser(privyDid, async (sql) => {
+      const caller = await authorize(sql, privyDid, betId, action, atSeconds);
+      if (!caller.ok) return caller;
 
-    const toState = nextState(action);
-    if (toState === 'resolved' && !options.outcome) {
-      return err({ code: 'INVALID', issues: [`${action} needs an outcome`] });
-    }
+      const toState = nextState(action, caller.value.bet);
+      if (toState === 'resolved' && !options.outcome) {
+        return err({ code: 'INVALID', issues: [`${action} needs an outcome`] });
+      }
 
-    const txColumn = txColumnFor(action);
-    await sql`
-      update bets set
-        state = ${toState}::bet_state,
-        outcome = coalesce(${options.outcome ?? null}::bet_outcome, outcome),
-        accept_tx = coalesce(${txColumn === 'accept_tx' ? (options.tx ?? null) : null}, accept_tx),
-        settle_tx = coalesce(${txColumn === 'settle_tx' ? (options.tx ?? null) : null}, settle_tx)
-      where id = ${betId}
-    `;
+      await applyTransition(sql, {
+        betId,
+        action,
+        from: caller.value.bet.state,
+        to: toState,
+        actor: caller.value,
+        outcome: options.outcome ?? null,
+        tx: options.tx ?? null,
+      });
 
-    await appendEvent(sql, {
-      betId,
-      action,
-      fromState: caller.value.bet.state,
-      toState,
-      actor: caller.value,
-      tx: options.tx ?? null,
-    });
-
-    const updated = await loadBet(sql, betId);
-    return updated ? ok(updated) : err(notFound('bet'));
-  });
+      const updated = await loadBet(sql, betId);
+      return updated ? ok(updated) : err(notFound('bet'));
+    }),
+  );
 }
 
 export interface SubmitClaimInput {
@@ -474,34 +576,36 @@ export async function submitClaim(
   input: SubmitClaimInput,
   atSeconds: number = currentSeconds(),
 ): Promise<Result<Bet, RepoError>> {
-  return withUser(privyDid, async (sql) => {
-    const caller = await authorize(sql, privyDid, betId, 'submitClaim', atSeconds);
-    if (!caller.ok) return caller;
+  return asConflict(
+    withUser(privyDid, async (sql) => {
+      const caller = await authorize(sql, privyDid, betId, 'submitClaim', atSeconds);
+      if (!caller.ok) return caller;
 
-    const side = roleToSide(caller.value.role);
-    if (!side) return err(forbidden('only a party to the bet can claim'));
+      const side = roleToSide(caller.value.role);
+      if (!side) return err(forbidden('only a party to the bet can claim'));
 
-    const claim: Claim = {
-      outcome: input.outcome,
-      by: side,
-      atSeconds,
-      windowEndsAtSeconds: atSeconds + CLAIM_WINDOW_SECONDS,
-    };
-    const row = toClaimInsert(betId, claim, caller.value.user.id, input.note ?? null);
-    await sql`insert into claims ${sql(row)}`;
-    await sql`update bets set state = 'claimed'::bet_state where id = ${betId}`;
-    await appendEvent(sql, {
-      betId,
-      action: 'submitClaim',
-      fromState: caller.value.bet.state,
-      toState: 'claimed',
-      actor: caller.value,
-      tx: null,
-    });
+      const claim: Claim = {
+        outcome: input.outcome,
+        by: side,
+        atSeconds,
+        windowEndsAtSeconds: atSeconds + CLAIM_WINDOW_SECONDS,
+      };
+      const row = toClaimInsert(betId, claim, caller.value.user.id, input.note ?? null);
+      await sql`insert into claims ${sql(row)}`;
+      // The claim row above is written first and is only correct if this lands — a losing race
+      // takes it back down with the rest of the transaction.
+      await applyTransition(sql, {
+        betId,
+        action: 'submitClaim',
+        from: caller.value.bet.state,
+        to: 'claimed',
+        actor: caller.value,
+      });
 
-    const updated = await loadBet(sql, betId);
-    return updated ? ok(updated) : err(notFound('bet'));
-  });
+      const updated = await loadBet(sql, betId);
+      return updated ? ok(updated) : err(notFound('bet'));
+    }),
+  );
 }
 
 export interface OpenDisputeInput {
@@ -509,9 +613,12 @@ export interface OpenDisputeInput {
 }
 
 /**
- * Says "no, they didn't". It costs nothing and moves nothing: the only thing a dispute
- * changes is that the referee now decides, and their deadline is derived here rather than
- * accepted from the caller.
+ * Says "no, they didn't". It costs nothing.
+ *
+ * With a referee named, it moves no money: the referee now decides, and their deadline is
+ * derived here rather than accepted from the caller. With nobody named there is nobody to wait
+ * for, so both stakes go back on the spot (2026-09-17) — no `disputes` row, since it would only
+ * carry a referee deadline nobody is bound by; the audit row is the record of who objected.
  */
 export async function openDispute(
   privyDid: string,
@@ -519,42 +626,45 @@ export async function openDispute(
   input: OpenDisputeInput = {},
   atSeconds: number = currentSeconds(),
 ): Promise<Result<Bet, RepoError>> {
-  return withUser(privyDid, async (sql) => {
-    const caller = await authorize(sql, privyDid, betId, 'disputeClaim', atSeconds);
-    if (!caller.ok) return caller;
+  return asConflict(
+    withUser(privyDid, async (sql) => {
+      const caller = await authorize(sql, privyDid, betId, 'disputeClaim', atSeconds);
+      if (!caller.ok) return caller;
 
-    const side = roleToSide(caller.value.role);
-    if (!side) return err(forbidden('only a party to the bet can dispute'));
+      const side = roleToSide(caller.value.role);
+      if (!side) return err(forbidden('only a party to the bet can dispute'));
 
-    const claims = await sql<RawRow[]>`select id from claims where bet_id = ${betId}`;
-    const claimId = claims[0]?.id;
-    if (!claimId) return err({ code: 'CONFLICT', reason: 'no claim to dispute' });
+      const claims = await sql<RawRow[]>`select id from claims where bet_id = ${betId}`;
+      const claimId = claims[0]?.id;
+      if (!claimId) return err({ code: 'CONFLICT', reason: 'no claim to dispute' });
 
-    const bet = caller.value.bet;
-    const dispute: Dispute = {
-      by: side,
-      atSeconds,
-      refereeDeadlineSeconds: atSeconds + REFEREE_TIMEOUT_SECONDS,
-    };
-    const row = toDisputeInsert(
-      betId,
-      String(claimId),
-      dispute,
-      caller.value.user.id,
-      input.reason ?? null,
-    );
-    await sql`insert into disputes ${sql(row)}`;
-    await sql`update bets set state = 'disputed'::bet_state where id = ${betId}`;
-    await appendEvent(sql, {
-      betId,
-      action: 'disputeClaim',
-      fromState: bet.state,
-      toState: 'disputed',
-      actor: caller.value,
-      tx: null,
-    });
+      const bet = caller.value.bet;
+      const toState = nextState('disputeClaim', bet);
+      if (toState === 'disputed') {
+        const dispute: Dispute = {
+          by: side,
+          atSeconds,
+          refereeDeadlineSeconds: atSeconds + REFEREE_TIMEOUT_SECONDS,
+        };
+        const row = toDisputeInsert(
+          betId,
+          String(claimId),
+          dispute,
+          caller.value.user.id,
+          input.reason ?? null,
+        );
+        await sql`insert into disputes ${sql(row)}`;
+      }
+      await applyTransition(sql, {
+        betId,
+        action: 'disputeClaim',
+        from: bet.state,
+        to: toState,
+        actor: caller.value,
+      });
 
-    const updated = await loadBet(sql, betId);
-    return updated ? ok(updated) : err(notFound('bet'));
-  });
+      const updated = await loadBet(sql, betId);
+      return updated ? ok(updated) : err(notFound('bet'));
+    }),
+  );
 }
