@@ -1,0 +1,27 @@
+{
+  "name": "@sporim/chain",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "The Solana escrow layer behind ChainAdapter: types + interface now, mock and devnet adapters next. No React, no Node, no DOM — Expo reuses this verbatim.",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@sporim/domain": "workspace:*",
+    "@solana/web3.js": "^1.98.4"
+  },
+  "devDependencies": {
+    "@sporim/config": "workspace:*",
+    "@sporim/testing": "workspace:*",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.7"
+  }
+}

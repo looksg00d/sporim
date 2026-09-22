@@ -1,0 +1,26 @@
+skip_local_validator = true
+
+[toolchain]
+
+[features]
+resolution = true
+skip-lint = false
+
+# Deployed 2026-09-12: program id EkfT8PTE7QShwtK6F7NEDgC2M3i4cGnLZhurULPVtDP2, upgrade
+# authority GcKAftNYqd6upW6abZRzbY59CCaRB9p69Lh8eNBDVkGb (devnet-only admin keypair, not
+# checked in — every machine that deploys/upgrades needs its own copy at the path below).
+[programs.devnet]
+sporim = "EkfT8PTE7QShwtK6F7NEDgC2M3i4cGnLZhurULPVtDP2"
+
+[provider]
+cluster = "devnet"
+# Per-machine path. On the machine that first deployed this, the keypair lives at
+# ~/.config/solana/sporim/admin.json inside WSL (Anchor/Solana CLI need a Linux toolchain on
+# Windows — see docs/DECISIONS.md, 2026-09-12). Point this at wherever the real admin keypair
+# is on whatever machine is building.
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "cargo test"
+
+[hooks]

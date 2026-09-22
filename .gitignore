@@ -41,7 +41,12 @@ test-ledger/
 .env
 .env.*
 !.env.example
+
+# Solana keypairs. Three patterns because the CLI writes all three shapes, and a keypair is
+# a 64-byte array in a .json file — indistinguishable from config to anything but its name.
 *.keypair.json
+*-keypair.json
+id.json
 
 # OS / editor
 .DS_Store
