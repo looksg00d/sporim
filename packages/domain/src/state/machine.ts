@@ -65,10 +65,9 @@ function claimedActions(bet: Bet, role: ViewerRole, now: number): BetAction[] {
   const side = roleToSide(role);
   if (!side || side === claim.by) return [];
 
-  const actions: BetAction[] = ['confirmClaim'];
-  // Disputing needs someone to arbitrate; without a referee the timeout does the work.
-  if (bet.referee) actions.push('disputeClaim');
-  return actions;
+  // Disagreeing is always on offer. Where it lands depends on whether anybody was named to
+  // decide — see `nextState`.
+  return ['confirmClaim', 'disputeClaim'];
 }
 
 /**
@@ -136,15 +135,21 @@ export function canPerform(
   return allowedActions(bet, role, nowSeconds).includes(action);
 }
 
-/** The state an action moves the bet into. Pure lookup — no validation, call `canPerform` first. */
-export function nextState(action: BetAction): BetState {
+/**
+ * The state an action moves the bet into. No validation — call `canPerform` first.
+ *
+ * Only `disputeClaim` looks at the bet. A named referee — confirmed or not — gets the
+ * disagreement. With nobody named there is nobody to wait for, so both stakes go back on the
+ * spot, fee-free like every refund (2026-09-17, `docs/DECISIONS.md`).
+ */
+export function nextState(action: BetAction, bet: Pick<Bet, 'referee'>): BetState {
   switch (action) {
     case 'accept':
       return 'active';
     case 'submitClaim':
       return 'claimed';
     case 'disputeClaim':
-      return 'disputed';
+      return bet.referee ? 'disputed' : 'refunded';
     case 'confirmClaim':
     case 'settleUncontested':
     case 'refereeResolve':

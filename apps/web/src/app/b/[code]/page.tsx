@@ -204,7 +204,7 @@ function Actions({
       {has('confirmClaim') || has('disputeClaim') ? (
         <Panel>
           <span style={{ ...typeStyle('bodySm'), color: color.inkSecondary }}>
-            {TRUST_COPY.disputing}
+            {bet.referee ? TRUST_COPY.disputing : TRUST_COPY.disputingMutual}
           </span>
           {has('confirmClaim') ? (
             <form action={agreeWithClaim}>
@@ -289,7 +289,9 @@ function Actions({
 
 /** What the money did, once it is no longer a forecast. */
 function SettledFigures({ bet }: { readonly bet: Bet }) {
-  const outcome = bet.outcome;
+  // A refund has no winner and so no `outcome`, but it still paid people — show that both got
+  // their stake back in full and that the fee was zero.
+  const outcome = bet.state === 'refunded' ? 'refund' : bet.outcome;
   if (!outcome) return null;
 
   const settlement = calculateSettlement({

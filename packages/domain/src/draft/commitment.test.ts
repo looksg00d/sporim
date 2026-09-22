@@ -10,7 +10,6 @@ const DRAFT: SubmittableDraft = {
   stake: usdc(20),
   deadlineSeconds: 1_788_000_000,
   decisionMode: 'mutual',
-  opponentRef: 'dima',
   refereeRef: undefined,
   beneficiaryKind: undefined,
   beneficiaryRef: undefined,
@@ -28,13 +27,23 @@ describe('commitmentCanonicalString', () => {
     expect(commitmentCanonicalString(DRAFT)).toContain(COMMITMENT_VERSION);
   });
 
+  /*
+   * 2026-09-17: nobody names the other side any more — whoever takes the link is them. The
+   * line stays, always null, because dropping it would change every v1 hash; and a client still
+   * running the old wizard cannot put a name back into it.
+   */
+  it('keeps the opponent slot empty, so v1 hashes stay what they were', () => {
+    expect(commitmentCanonicalString(DRAFT)).toContain('opponent=null');
+    const stale = { ...DRAFT, opponentRef: 'sasha' } as SubmittableDraft;
+    expect(commitmentCanonicalString(stale)).toBe(commitmentCanonicalString(DRAFT));
+  });
+
   it.each([
     ['terms', { terms: 'Ты не пробежишь 11 км до воскресенья.' }],
     ['stake', { stake: usdc(21) }],
     ['deadline', { deadlineSeconds: DRAFT.deadlineSeconds + 1 }],
     ['format', { format: 'commit' as const }],
     ['decision mode', { decisionMode: 'referee' as const }],
-    ['opponent', { opponentRef: 'sasha' }],
     ['referee', { refereeRef: 'anya' }],
     ['fee', { feeBps: 200 }],
     ['signature', { signature: typedSignature('Дима') }],

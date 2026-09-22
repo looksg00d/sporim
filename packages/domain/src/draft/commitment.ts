@@ -53,7 +53,9 @@ export function commitmentCanonicalString(draft: SubmittableDraft): string {
     ['stake', draft.stake.toString()],
     ['deadline', draft.deadlineSeconds],
     ['decision', draft.decisionMode],
-    ['opponent', draft.opponentRef ?? null],
+    // Always null since 2026-09-17: nobody names the other side any more, whoever takes the
+    // link is them. The line stays so that every v1 hash stays what it was.
+    ['opponent', null],
     ['referee', draft.refereeRef ?? null],
     ['beneficiaryKind', draft.beneficiaryKind ?? null],
     ['beneficiaryRef', draft.beneficiaryRef ?? null],

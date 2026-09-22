@@ -294,7 +294,6 @@ export default function ReviewStepPage() {
             stake: values.stake,
             deadlineLabel: formatDeadlineLong(values.deadlineSeconds),
             decisionMode: values.decisionMode,
-            opponentName: values.opponentRef,
             refereeName: values.refereeRef,
             beneficiaryName: values.beneficiaryRef,
             feeBps: values.feeBps,
@@ -341,7 +340,7 @@ export default function ReviewStepPage() {
         sides={[
           { label: 'You', value: `${formatUsdc(values.stake)} USDC`, tone: 'mine' },
           {
-            label: values.opponentRef ?? 'Them',
+            label: 'Them',
             value: values.format === 'bet' ? `${formatUsdc(values.stake)} USDC` : 'No stake',
           },
         ]}

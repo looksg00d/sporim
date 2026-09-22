@@ -24,7 +24,6 @@ export function createServerWallet(): WalletPort {
         stake: formatUsdc(draft.stake, { maxDecimals: USDC_DECIMALS }),
         deadlineSeconds: draft.deadlineSeconds,
         decisionMode: draft.decisionMode,
-        opponentRef: draft.opponentRef,
         refereeRef: draft.refereeRef,
         beneficiaryKind: draft.beneficiaryKind,
         beneficiaryRef: draft.beneficiaryRef,

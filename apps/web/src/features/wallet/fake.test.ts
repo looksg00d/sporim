@@ -9,7 +9,6 @@ const DRAFT: SubmittableDraft = {
   stake: usdc(20),
   deadlineSeconds: 1_788_000_000,
   decisionMode: 'mutual',
-  opponentRef: 'dima',
   refereeRef: undefined,
   beneficiaryKind: undefined,
   beneficiaryRef: undefined,

@@ -48,7 +48,7 @@ export const TRUST_COPY = {
   refund: 'Nobody agrees? Both refunded.',
   noBackingOut: 'No backing out.',
   timeline:
-    'After the deadline either of you claims the win. The other has 48 hours. Say nothing and the claim stands. Disagreeing is free, and then the referee decides. If the referee never does, you both get your money back after 7 days.',
+    'After the deadline either of you claims the win. The other has 48 hours. Say nothing and the claim stands. Disagreeing is free: without a referee it refunds you both on the spot, with one the referee decides. If the referee never does, you both get your money back after 7 days.',
   refereeRole:
     "The referee only appears if you two disagree. They can't take the money — only pick a winner or a draw. Ruling earns them 1% of the winnings, out of our fee, not on top of it.",
 
@@ -75,6 +75,9 @@ export const TRUST_COPY = {
   linkWarning: 'Anyone with this link can accept. Send it to the right person.',
   disputing:
     "Disagreeing is free. If you say they didn't do it, your referee decides — and if your referee never does, everyone gets their money back.",
+  /** The same moment on a bet with nobody named to decide (2026-09-17). */
+  disputingMutual:
+    "Disagreeing is free. With no referee, saying they didn't do it refunds you both on the spot — no fee.",
   devnet: 'Devnet — test money only.',
 } as const;
 

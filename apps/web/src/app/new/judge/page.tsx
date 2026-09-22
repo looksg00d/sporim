@@ -9,28 +9,26 @@ import { track } from '@/lib/analytics';
 /**
  * S4 — who decides.
  *
- * Two guards live here. A one-sided format cannot use mutual confirmation, so that option
- * is not offered at all (the reducer would refuse it anyway — this screen just stops
- * showing a door that is locked). And you cannot referee your own bet: the referee's whole
- * value is that they have no money in it.
+ * A one-sided format cannot use mutual confirmation, so that option is not offered at all (the
+ * reducer would refuse it anyway — this screen just stops showing a door that is locked).
+ *
+ * The other side is not asked for here (2026-09-17): whoever takes the link is them, under
+ * their own name. A typed name bound to nothing, so the check that the referee is not that
+ * name went with it — the real guard is where the accounts are known, in the accept and
+ * referee links, which refuse each other's holder (0004, 0011).
  */
 
 const MODE_COPY: Record<DecisionMode, { label: string; hint: string }> = {
   mutual: {
     label: 'We both confirm',
-    hint: 'Fastest. If you disagree, the referee you name here steps in.',
+    // Nobody named is a real choice, and it has a consequence worth saying up front (2026-09-17).
+    hint: 'Fastest. If you disagree, a referee you name below steps in — name nobody, and you both get your money back.',
   },
   referee: {
     label: 'A friend decides',
     hint: TRUST_COPY.refereeRole,
   },
 };
-
-function looksLikeSelf(refereeRef: string, opponentRef: string): boolean {
-  const referee = refereeRef.trim().toLowerCase().replace(/^@/, '');
-  if (referee.length === 0) return false;
-  return referee === opponentRef.trim().toLowerCase().replace(/^@/, '');
-}
 
 export default function JudgeStepPage() {
   const { draft, dispatch } = useDraft();
@@ -41,13 +39,8 @@ export default function JudgeStepPage() {
   const refereeRequired = draft.decisionMode === 'referee';
   const refereeTrimmed = draft.refereeRef.trim();
   const refereeMissing = refereeRequired && refereeTrimmed.length < 2;
-  const refereeIsOpponent = looksLikeSelf(draft.refereeRef, draft.opponentRef);
 
-  const blockedReason = refereeMissing
-    ? 'Name who decides if you disagree.'
-    : refereeIsOpponent
-      ? 'The referee cannot be the other side of the bet.'
-      : undefined;
+  const blockedReason = refereeMissing ? 'Name who decides if you disagree.' : undefined;
 
   return (
     <StepScreen
@@ -105,7 +98,7 @@ export default function JudgeStepPage() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: space.xs }}>
         <label htmlFor="referee" style={{ ...typeStyle('labelCaps'), color: color.inkSecondary }}>
-          REFEREE
+          {refereeRequired ? 'REFEREE' : 'REFEREE (OPTIONAL)'}
         </label>
         <input
           id="referee"
@@ -114,13 +107,11 @@ export default function JudgeStepPage() {
           onChange={(event) => dispatch({ type: 'setRefereeRef', refereeRef: event.target.value })}
           placeholder="@handle or their name"
           maxLength={64}
-          aria-invalid={refereeIsOpponent}
-          aria-describedby={refereeIsOpponent ? 'referee-error' : undefined}
           style={{
             width: '100%',
             padding: space.md,
             borderRadius: radius.md,
-            border: `1px solid ${refereeIsOpponent ? color.loss : color.hairlineStrong}`,
+            border: `1px solid ${color.hairlineStrong}`,
             background: color.surface,
             color: color.ink,
             ...typeStyle('body'),
@@ -136,49 +127,10 @@ export default function JudgeStepPage() {
             color: color.inkSecondary,
           }}
         >
-          {TRUST_COPY.disputing}
+          {refereeTrimmed ? TRUST_COPY.disputing : TRUST_COPY.disputingMutual}
         </p>
-
-        {refereeIsOpponent ? (
-          <span
-            id="referee-error"
-            role="alert"
-            style={{ ...typeStyle('micro'), color: color.loss }}
-          >
-            That is the other side of the bet. Pick someone with nothing in it.
-          </span>
-        ) : (
-          <span style={{ ...typeStyle('micro'), color: color.inkFaint }}>
-            They only get asked if you two disagree.
-          </span>
-        )}
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: space.xs }}>
-        <label htmlFor="opponent" style={{ ...typeStyle('labelCaps'), color: color.inkSecondary }}>
-          WHO ARE YOU BETTING? (OPTIONAL)
-        </label>
-        <input
-          id="opponent"
-          className="sporim-input sporim-focusable"
-          value={draft.opponentRef}
-          onChange={(event) =>
-            dispatch({ type: 'setOpponentRef', opponentRef: event.target.value })
-          }
-          placeholder="Leave blank and anyone with the link can take it"
-          maxLength={64}
-          style={{
-            width: '100%',
-            padding: space.md,
-            borderRadius: radius.md,
-            border: `1px solid ${color.hairlineStrong}`,
-            background: color.surface,
-            color: color.ink,
-            ...typeStyle('body'),
-          }}
-        />
         <span style={{ ...typeStyle('micro'), color: color.inkFaint }}>
-          {TRUST_COPY.linkWarning}
+          They only get asked if you two disagree. Whoever takes your link is the other side.
         </span>
       </div>
     </StepScreen>

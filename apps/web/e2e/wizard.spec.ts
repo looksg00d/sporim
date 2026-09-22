@@ -172,19 +172,17 @@ test.describe('S3 — deadline', () => {
 });
 
 test.describe('S4 — judge', () => {
-  test('refuses a referee who is the other side of the bet', async ({ page }) => {
+  test('does not ask who the bet is against — whoever takes the link is', async ({ page }) => {
+    // 2026-09-17. The name used to be typed here and bound to nothing. That a referee cannot
+    // also take a side is enforced where the accounts are known: the accept and the referee
+    // links refuse each other's holder (0004, 0011).
     await reachDeadline(page);
     await pickDeadline(page);
     await next(page).click();
     await page.waitForURL('**/new/judge');
 
-    await page.getByRole('button', { name: /^A friend decides/ }).click();
-    await page.fill('#opponent', 'dima');
-    await page.fill('#referee', '@Dima');
-
-    // Addressed by id: Next's route announcer is also role="alert".
-    await expect(page.locator('#referee-error')).toContainText('other side of the bet');
-    await expect(next(page)).toBeDisabled();
+    await expect(page.locator('#opponent')).toHaveCount(0);
+    await expect(page.getByText(/who are you betting/i)).toHaveCount(0);
   });
 
   test('mutual confirmation needs no referee', async ({ page }) => {

@@ -15,7 +15,6 @@ export interface BetDraft {
   readonly stake: UsdcAmount | null;
   readonly deadlineSeconds: number | null;
   readonly decisionMode: DecisionMode;
-  readonly opponentRef: string;
   readonly refereeRef: string;
   readonly beneficiaryKind: BeneficiaryKind | null;
   readonly beneficiaryRef: string;
@@ -29,7 +28,6 @@ export const EMPTY_DRAFT: BetDraft = {
   stake: null,
   deadlineSeconds: null,
   decisionMode: 'mutual',
-  opponentRef: '',
   refereeRef: '',
   beneficiaryKind: null,
   beneficiaryRef: '',
@@ -42,7 +40,6 @@ export type DraftAction =
   | { readonly type: 'setStake'; readonly stake: UsdcAmount }
   | { readonly type: 'setDeadline'; readonly deadlineSeconds: number }
   | { readonly type: 'setDecisionMode'; readonly decisionMode: DecisionMode }
-  | { readonly type: 'setOpponentRef'; readonly opponentRef: string }
   | { readonly type: 'setRefereeRef'; readonly refereeRef: string }
   | { readonly type: 'setBeneficiary'; readonly kind: BeneficiaryKind; readonly ref: string }
   | { readonly type: 'setSignature'; readonly signature: Signature | null }
@@ -83,9 +80,6 @@ export function draftReducer(state: BetDraft, action: DraftAction): BetDraft {
       if (state.format !== 'bet' && action.decisionMode === 'mutual') return state;
       return { ...state, decisionMode: action.decisionMode };
 
-    case 'setOpponentRef':
-      return { ...state, opponentRef: action.opponentRef };
-
     case 'setRefereeRef':
       return { ...state, refereeRef: action.refereeRef };
 
@@ -111,7 +105,6 @@ export interface SubmittableDraft {
   readonly stake: UsdcAmount;
   readonly deadlineSeconds: number;
   readonly decisionMode: DecisionMode;
-  readonly opponentRef: string | undefined;
   readonly refereeRef: string | undefined;
   readonly beneficiaryKind: BeneficiaryKind | undefined;
   readonly beneficiaryRef: string | undefined;
@@ -141,7 +134,6 @@ export function toSubmittable(
     stake: draft.stake,
     deadlineSeconds: draft.deadlineSeconds,
     decisionMode: draft.decisionMode,
-    opponentRef: draft.opponentRef || undefined,
     refereeRef: draft.refereeRef || undefined,
     beneficiaryKind: draft.beneficiaryKind ?? undefined,
     beneficiaryRef: draft.beneficiaryRef || undefined,
@@ -177,7 +169,6 @@ export function toSubmittable(
     stake: values.stake,
     deadlineSeconds: values.deadlineSeconds,
     decisionMode: values.decisionMode,
-    opponentRef: values.opponentRef,
     refereeRef: values.refereeRef,
     beneficiaryKind: values.beneficiaryKind,
     beneficiaryRef: values.beneficiaryRef,

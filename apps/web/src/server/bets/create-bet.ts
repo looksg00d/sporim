@@ -75,7 +75,6 @@ export const createBetPayloadSchema = z.object({
   stake: stakeSchema,
   deadlineSeconds: z.number().int().finite(),
   decisionMode: decisionModeSchema,
-  opponentRef: z.string().max(200).optional(),
   refereeRef: z.string().max(200).optional(),
   beneficiaryKind: beneficiaryKindSchema.nullish(),
   beneficiaryRef: z.string().max(200).optional(),
@@ -101,7 +100,6 @@ function toDraft(payload: z.output<typeof createBetPayloadSchema>): BetDraft {
     stake: payload.stake,
     deadlineSeconds: payload.deadlineSeconds,
     decisionMode: oneSided ? 'referee' : payload.decisionMode,
-    opponentRef: payload.opponentRef ?? '',
     refereeRef: payload.refereeRef ?? '',
     beneficiaryKind: oneSided ? (payload.beneficiaryKind ?? null) : null,
     beneficiaryRef: oneSided ? (payload.beneficiaryRef ?? '') : '',
@@ -118,9 +116,6 @@ function toDraft(payload: z.output<typeof createBetPayloadSchema>): BetDraft {
  * opening their own link, and `createBet` nulls it a second time in case this ever forgets.
  */
 function toBet(draft: SubmittableDraft, user: UserRecord, atSeconds: number): Bet {
-  const named = (ref: string | undefined) =>
-    ref ? { userId: null, wallet: null, displayName: ref } : null;
-
   return {
     id: randomUUID() as BetId,
     shortCode: newShortCode(),
@@ -143,7 +138,8 @@ function toBet(draft: SubmittableDraft, user: UserRecord, atSeconds: number): Be
       // other person's card that its owner never chose.
       displayName: draft.signature.kind === 'typed' ? draft.signature.name : user.displayName,
     },
-    opponent: named(draft.opponentRef),
+    // Nobody is named: whoever takes the link becomes the other side, under their own name.
+    opponent: null,
     referee: draft.refereeRef
       ? { userId: null, wallet: null, displayName: draft.refereeRef, confirmedAtSeconds: null }
       : null,

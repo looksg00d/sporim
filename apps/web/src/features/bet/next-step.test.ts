@@ -62,6 +62,23 @@ describe('whatHappensNext', () => {
     it('says out loud that disagreeing is free', () => {
       expect(whatHappensNext(claimed('creator'), 'opponent', NOW)).toMatch(/free/);
     });
+
+    /*
+     * 2026-09-17: with nobody named to decide, "no, they didn't" refunds both stakes at once.
+     * Both sides have to hear it before it happens — the claimant most of all, since it is the
+     * reason a false claim buys nothing.
+     */
+    it('tells both sides that, with no referee, disagreeing refunds them', () => {
+      expect(claimed('creator').referee).toBeNull();
+      expect(whatHappensNext(claimed('creator'), 'opponent', NOW)).toMatch(/money back/i);
+      expect(whatHappensNext(claimed('creator'), 'creator', NOW)).toMatch(/money back/i);
+    });
+
+    it('points a disagreement at the referee when there is one', () => {
+      const refereed: Bet = { ...claimed('creator'), referee: makeReferee() };
+      expect(whatHappensNext(refereed, 'opponent', NOW)).toMatch(/referee/i);
+      expect(whatHappensNext(refereed, 'creator', NOW)).toMatch(/referee/i);
+    });
   });
 
   describe('once they disagree', () => {

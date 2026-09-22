@@ -134,6 +134,13 @@ describe('no copy promises anyone a free ride', () => {
     expect(TRUST_COPY.disputing).not.toMatch(/deposit|bond/i);
   });
 
+  it('tells a bet with no referee that disagreeing is free and refunds you both', () => {
+    // 2026-09-17: nobody to decide means nobody to wait for.
+    expect(TRUST_COPY.disputingMutual).toMatch(/free/i);
+    expect(TRUST_COPY.disputingMutual).toMatch(/money back|refunds you both/i);
+    expect(TRUST_COPY.disputingMutual).not.toMatch(/referee decides/i);
+  });
+
   it('describes Commit by what each side contributes, not by their exposure', () => {
     expect(FORMAT_COPY.commit.who).toBe('Only you put money in.');
   });
@@ -191,6 +198,10 @@ describe('no copy promises anyone a free ride', () => {
 
   it('says plainly that disagreeing costs nothing', () => {
     expect(TRUST_COPY.timeline).toMatch(/free/i);
+  });
+
+  it('says what a disagreement does when nobody was named to decide', () => {
+    expect(TRUST_COPY.timeline).toMatch(/without a referee[^.]*refunds you both/i);
   });
 
   it('tells a referee that the role bars them from taking a side', () => {

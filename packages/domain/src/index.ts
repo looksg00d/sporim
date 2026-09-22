@@ -54,7 +54,6 @@ export {
   beneficiaryKindSchema,
   deadlineSchema,
   refereeRefSchema,
-  opponentRefSchema,
   betDraftSchema,
   STAKE_MAX_DECIMALS,
   type BetDraftInput,

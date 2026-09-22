@@ -231,7 +231,6 @@ export default function FormatStepPage() {
           format={draft.format}
           stake={draft.stake}
           feeBps={env.feeBps}
-          opponentName={draft.opponentRef}
           beneficiaryName={draft.beneficiaryRef}
         />
       ) : null}

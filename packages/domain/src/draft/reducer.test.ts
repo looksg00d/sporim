@@ -159,11 +159,15 @@ describe('draftReducer — hydrate', () => {
   });
 
   it('does not merge leftovers from the state it replaces', () => {
-    const dirty = filledDraft({ refereeRef: 'kolya', opponentRef: 'dima' });
+    const dirty = filledDraft({ refereeRef: 'kolya' });
     const restored = { ...EMPTY_DRAFT, terms: 'a restored draft, ten plus chars' };
     const next = draftReducer(dirty, { type: 'hydrate', draft: restored });
     expect(next.refereeRef).toBe('');
-    expect(next.opponentRef).toBe('');
+  });
+
+  it('has no opponent to fill in — whoever takes the link is the other side', () => {
+    // 2026-09-17: the name used to be typed on the fourth screen and bound to nothing.
+    expect(EMPTY_DRAFT).not.toHaveProperty('opponentRef');
   });
 
   it('is reversible by reset', () => {

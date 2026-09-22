@@ -76,8 +76,6 @@ export const refereeRefSchema = z
   .max(64, 'That handle is too long.')
   .refine((value) => !/\s{2,}/.test(value), { message: 'That does not look like a handle.' });
 
-export const opponentRefSchema = z.string().trim().max(64).optional();
-
 /** The wizard's in-progress draft. Steps fill it in; only `betDraftSchema` gates submission. */
 export const betDraftSchema = z.object({
   terms: termsSchema,
@@ -86,7 +84,6 @@ export const betDraftSchema = z.object({
   stake: z.bigint().min(MIN_STAKE).max(MAX_STAKE).transform(asUsdcAmount),
   deadlineSeconds: z.number().int(),
   decisionMode: decisionModeSchema,
-  opponentRef: opponentRefSchema,
   refereeRef: refereeRefSchema.optional(),
   beneficiaryKind: beneficiaryKindSchema.optional(),
   beneficiaryRef: z.string().trim().max(64).optional(),

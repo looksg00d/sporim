@@ -130,9 +130,11 @@ describe('allowedActions — claimed', () => {
     expect(allowedActions(bet, 'opponent', DEADLINE + 1)).toEqual(['confirmClaim', 'disputeClaim']);
   });
 
-  it('does not offer a dispute when no referee was named', () => {
+  it('offers a dispute without a referee too', () => {
+    // 2026-09-17. Before this the side facing a claim with nobody to ask could only agree or
+    // wait out the window — and waiting let whoever claimed first take the pot.
     const bet = claimedBet('creator', { referee: null });
-    expect(allowedActions(bet, 'opponent', DEADLINE + 1)).toEqual(['confirmClaim']);
+    expect(allowedActions(bet, 'opponent', DEADLINE + 1)).toEqual(['confirmClaim', 'disputeClaim']);
   });
 
   it('still offers a dispute against a referee who has not taken the role', () => {
@@ -185,7 +187,7 @@ describe('allowedActions — disputed', () => {
     for (const role of VIEWER_ROLES) {
       expect(allowedActions(disputedBet, role, after)).toEqual(['refundExpired']);
     }
-    expect(nextState('refundExpired')).toBe('refunded');
+    expect(nextState('refundExpired', disputedBet)).toBe('refunded');
   });
 
   it('lets anyone push it through — the money is never trapped behind one person', () => {
@@ -211,7 +213,7 @@ describe('allowedActions — disputed with a referee who never took the role', (
     for (const role of VIEWER_ROLES) {
       expect(allowedActions(disputedBet, role, REFEREE_DEADLINE)).toEqual(['refundExpired']);
     }
-    expect(nextState('refundExpired')).toBe('refunded');
+    expect(nextState('refundExpired', disputedBet)).toBe('refunded');
   });
 
   it('is still an exit anyone can take, like every other timeout', () => {
@@ -322,11 +324,13 @@ describe('invariant: money is never trapped', () => {
     const actions = allowedActions(base, 'observer', farFuture);
     const escape = actions.filter((a) => (PERMISSIONLESS_ACTIONS as readonly string[]).includes(a));
     expect(escape.length).toBeGreaterThan(0);
-    expect(isTerminal(nextState(escape[0]!))).toBe(true);
+    expect(isTerminal(nextState(escape[0]!, base))).toBe(true);
   });
 });
 
 describe('nextState', () => {
+  const refereed = claimedBet('creator', { referee: REFEREE });
+
   it.each([
     ['accept', 'active'],
     ['submitClaim', 'claimed'],
@@ -338,7 +342,46 @@ describe('nextState', () => {
     ['cancel', 'cancelled'],
     ['expireUnaccepted', 'cancelled'],
   ] as const)('%s → %s', (action, expected) => {
-    expect(nextState(action)).toBe(expected);
+    expect(nextState(action, refereed)).toBe(expected);
+  });
+
+  it('hands a dispute to a named referee, whether or not they have taken the role yet', () => {
+    // Where it lands is decided by the name; who may rule is decided by confirmation —
+    // see the disputed suites above.
+    expect(nextState('disputeClaim', claimedBet('creator', { referee: REFEREE }))).toBe('disputed');
+    expect(nextState('disputeClaim', claimedBet('creator', { referee: UNCONFIRMED_REFEREE }))).toBe(
+      'disputed',
+    );
+  });
+
+  it('refunds both sides on the spot when nobody was named to decide', () => {
+    // Nobody was named, so there is nobody to wait for.
+    const unrefereed = claimedBet('creator', { referee: null });
+    expect(nextState('disputeClaim', unrefereed)).toBe('refunded');
+    expect(isTerminal(nextState('disputeClaim', unrefereed))).toBe(true);
+  });
+});
+
+describe('a disagreement without a referee, in money', () => {
+  // Same assertion as the silent-referee refund above, for the same reason: a refund pays
+  // back exactly the stakes, and nobody is charged for having disagreed.
+  const bet = claimedBet('creator', { referee: null });
+
+  it('returns both stakes in full and charges no fee', () => {
+    const settlement = unwrap(
+      calculateSettlement({
+        format: bet.format,
+        stakeCreator: bet.stakeCreator,
+        stakeOpponent: bet.stakeOpponent,
+        feeBps: bet.feeBps,
+        outcome: 'refund',
+      }),
+    );
+    expect(settlement.kind).toBe('refund');
+    expect(settlement.toCreator).toBe(bet.stakeCreator);
+    expect(settlement.toOpponent).toBe(bet.stakeOpponent);
+    expect(settlement.fee).toBe(ZERO_USDC);
+    expect(settlement.toTreasury).toBe(ZERO_USDC);
   });
 });
 

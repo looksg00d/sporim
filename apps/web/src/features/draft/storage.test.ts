@@ -21,7 +21,6 @@ const FILLED: BetDraft = {
   stake: usdc(20),
   deadlineSeconds: 1_788_000_000,
   decisionMode: 'referee',
-  opponentRef: 'dima',
   refereeRef: 'kolya',
   beneficiaryKind: null,
   beneficiaryRef: '',
@@ -69,6 +68,14 @@ describe('serializeDraft', () => {
 });
 
 describe('deserializeDraft', () => {
+  it('reads a draft saved while the wizard still asked for the opponent, and drops the name', () => {
+    // 2026-09-17: the field is gone, but a tab opened before the deploy still holds one.
+    const legacy = JSON.stringify({ ...JSON.parse(serializeDraft(FILLED)), opponentRef: 'dima' });
+    const restored = deserializeDraft(legacy);
+    expect(restored).toEqual(FILLED);
+    expect(restored).not.toHaveProperty('opponentRef');
+  });
+
   it('returns null for nothing stored', () => {
     expect(deserializeDraft(null)).toBeNull();
     expect(deserializeDraft('')).toBeNull();

@@ -38,11 +38,16 @@ export function whatHappensNext(bet: Bet, role: ViewerRole, now: number): string
     case 'claimed': {
       const claim = bet.claim;
       if (!claim) return 'A result was claimed.';
+      // Where a disagreement lands, said before it happens: with nobody named, it refunds on
+      // the spot (2026-09-17).
+      const onDisagree = bet.referee
+        ? 'the referee decides, and if they never do, you both get your money back'
+        : 'you both get your money back';
       if (isParty && claim.by === role) {
-        return 'You said how it went. They have time to agree or to disagree.';
+        return `You said how it went. They have time to agree. If they disagree, ${onDisagree}.`;
       }
       return isParty
-        ? 'They said how it went. Agree, or say they did not — disagreeing is free.'
+        ? `They said how it went. Agree, or say they did not. Disagreeing is free: ${onDisagree}.`
         : 'One side has claimed a result. The other side has time to answer.';
     }
 
