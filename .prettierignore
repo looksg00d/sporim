@@ -11,3 +11,6 @@ pnpm-lock.yaml
 data/**
 reference/**
 apps/web/src/app/fonts.css
+
+# Anchor writes this from the program source; formatting it would fight the toolchain.
+packages/program/programs/*/idl.json

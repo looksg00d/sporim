@@ -42,6 +42,10 @@ pnpm --filter @sporim/web exec vitest run
 - Ничего. Следующее — `[NEXT]` ниже.
 - `[DONE]` Живая проверка прошла 5 сентября на `sporim.fun` с настоящей сессией: визард →
   ставка в базе → `/me` → страница спора. Работает end-to-end.
+- `[DONE]` **22 сентября: паритет денег TS ↔ Rust.** 16 общих векторов, генерируются из
+  `calculateSettlement`, читаются Rust-тестом через `include_str!`. В CI появилась Rust-нога.
+  Проверено порчей вектора: Rust падает. Сборка и тесты программы — из WSL, кеш на стороне
+  Linux: `cd packages/program && CARGO_TARGET_DIR=$HOME/dev/.sporim-target cargo test`.
 - `[DONE]` **22 сентября: один писатель переходов.** `applyTransition` с проверкой
   `where state = $from` заменила четыре места, где состояние писалось безусловно, — и закрыла
   гонку на permissionless-таймаутах. Проигравший гонку за место оппонента теперь получает

@@ -1,4 +1,11 @@
-import type { BetId, ChainNetwork, Result, TxSignature, UsdcAmount, WalletAddress } from '@sporim/domain';
+import type {
+  BetId,
+  ChainNetwork,
+  Result,
+  TxSignature,
+  UsdcAmount,
+  WalletAddress,
+} from '@sporim/domain';
 import type { ChainError } from './errors';
 import type {
   AcceptBetInput,
@@ -56,7 +63,10 @@ export interface ChainAdapter {
   /** `null` when this network has no explorer (mock) or the signature was never real. */
   explorerUrl(signature: TxSignature): string | null;
 
-  createBet(input: CreateBetInput, wallet: WalletPort): Promise<Result<CreateBetReceipt, ChainError>>;
+  createBet(
+    input: CreateBetInput,
+    wallet: WalletPort,
+  ): Promise<Result<CreateBetReceipt, ChainError>>;
   acceptBet(input: AcceptBetInput, wallet: WalletPort): Promise<Result<TxReceipt, ChainError>>;
   cancelBet(input: CancelBetInput, wallet: WalletPort): Promise<Result<TxReceipt, ChainError>>;
 
@@ -65,7 +75,10 @@ export interface ChainAdapter {
     input: ConfirmClaimInput,
     wallet: WalletPort,
   ): Promise<Result<SettlementReceipt, ChainError>>;
-  disputeClaim(input: DisputeClaimInput, wallet: WalletPort): Promise<Result<TxReceipt, ChainError>>;
+  disputeClaim(
+    input: DisputeClaimInput,
+    wallet: WalletPort,
+  ): Promise<Result<TxReceipt, ChainError>>;
   refereeResolve(
     input: RefereeResolveInput,
     wallet: WalletPort,
@@ -82,5 +95,8 @@ export interface ChainAdapter {
   ): Promise<Result<SettlementReceipt, ChainError>>;
 
   /** Devnet only. `undefined` on mock and mainnet-beta — there is nothing to request. */
-  requestTestUsdc?(owner: WalletAddress, amount: UsdcAmount): Promise<Result<TxReceipt, ChainError>>;
+  requestTestUsdc?(
+    owner: WalletAddress,
+    amount: UsdcAmount,
+  ): Promise<Result<TxReceipt, ChainError>>;
 }

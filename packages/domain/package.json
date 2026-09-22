@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "vectors": "vitest run -u src/money/vectors.test.ts"
   },
   "dependencies": {
     "zod": "^4.5.4"

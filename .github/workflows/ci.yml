@@ -51,6 +51,29 @@ jobs:
       - name: Build
         run: pnpm build
 
+  # The escrow program had no CI at all until now: it was built and checked by hand, in WSL,
+  # on one machine. This runs the part that needs no Solana toolchain — the money. The vectors
+  # it reads are generated from `calculateSettlement`, so a change to the fee, the rounding or
+  # the split fails here until the program agrees with the domain again.
+  #
+  # Instruction-level tests (LiteSVM) need a built program and come with the next slice.
+  program:
+    name: rust · settlement parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/program
+
+      - name: Parity with the domain
+        run: cargo test --package sporim --test parity
+        working-directory: packages/program
+
   # Every contributor here is on Windows; a green Linux run that breaks `pnpm dev`
   # locally is worthless, so install and typecheck also run on windows-latest.
   windows:

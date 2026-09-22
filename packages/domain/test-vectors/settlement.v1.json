@@ -1,0 +1,342 @@
+{
+  "version": "sporim.settlement.v1",
+  "feeBps": 300,
+  "cases": [
+    {
+      "name": "bet, equal stakes, creator wins",
+      "input": {
+        "format": "bet",
+        "stakeCreator": "20000000",
+        "stakeOpponent": "20000000",
+        "feeBps": 300,
+        "outcome": "creator_wins",
+        "ruledByReferee": false
+      },
+      "expected": {
+        "kind": "payout",
+        "pot": "40000000",
+        "fee": "600000",
+        "toCreator": "39400000",
+        "toOpponent": "0",
+        "toTreasury": "600000",
+        "toReferee": "0"
+      },
+      "onChain": true
+    },
+    {
+      "name": "bet, equal stakes, opponent wins",
+      "input": {
+        "format": "bet",
+        "stakeCreator": "20000000",
+        "stakeOpponent": "20000000",
+        "feeBps": 300,
+        "outcome": "opponent_wins",
+        "ruledByReferee": false
+      },
+      "expected": {
+        "kind": "payout",
+        "pot": "40000000",
+        "fee": "600000",
+        "toCreator": "0",
+        "toOpponent": "39400000",
+        "toTreasury": "600000",
+        "toReferee": "0"
+      },
+      "onChain": true
+    },
+    {
+      "name": "bet, a draw returns both stakes and charges nothing",
+      "input": {
+        "format": "bet",
+        "stakeCreator": "20000000",
+        "stakeOpponent": "20000000",
+        "feeBps": 300,
+        "outcome": "draw",
+        "ruledByReferee": false
+      },
+      "expected": {
+        "kind": "refund",
+        "pot": "40000000",
+        "fee": "0",
+        "toCreator": "20000000",
+        "toOpponent": "20000000",
+        "toTreasury": "0",
+        "toReferee": "0"
+      },
+      "onChain": true
+    },
+    {
+      "name": "bet, a refund is a draw by another name",
+      "input": {
+        "format": "bet",
+        "stakeCreator": "20000000",
+        "stakeOpponent": "20000000",
+        "feeBps": 300,
+        "outcome": "refund",
+        "ruledByReferee": false
+      },
+      "expected": {
+        "kind": "refund",
+        "pot": "40000000",
+        "fee": "0",
+        "toCreator": "20000000",
+        "toOpponent": "20000000",
+        "toTreasury": "0",
+        "toReferee": "0"
+      },
+      "onChain": false
+    },
+    {
+      "name": "bet at the minimum stake",
+      "input": {
+        "format": "bet",
+        "stakeCreator": "1000000",
+        "stakeOpponent": "1000000",
+        "feeBps": 300,
+        "outcome": "creator_wins",
+        "ruledByReferee": false
+      },
+      "expected": {
+        "kind": "payout",
+        "pot": "2000000",
+        "fee": "30000",
+        "toCreator": "1970000",
+        "toOpponent": "0",
+        "toTreasury": "30000",
+        "toReferee": "0"
+      },
+      "onChain": true
+    },
+    {
+      "name": "bet at the maximum stake",
+      "input": {
+        "format": "bet",
+        "stakeCreator": "100000000",
+        "stakeOpponent": "100000000",
+        "feeBps": 300,
+        "outcome": "opponent_wins",
+        "ruledByReferee": false
+      },
+      "expected": {
+        "kind": "payout",
+        "pot": "200000000",
+        "fee": "3000000",
+        "toCreator": "0",
+        "toOpponent": "197000000",
+        "toTreasury": "3000000",
+        "toReferee": "0"
+      },
+      "onChain": true
+    },
+    {
+      "name": "rounding: one base unit of net wins pays no fee at all",
+      "input": {
+        "format": "bet",
+        "stakeCreator": "1",
+        "stakeOpponent": "1",
+        "feeBps": 300,
+        "outcome": "creator_wins",
+        "ruledByReferee": false
+      },
+      "expected": {
+        "kind": "payout",
+        "pot": "2",
+        "fee": "0",
+        "toCreator": "2",
+        "toOpponent": "0",
+        "toTreasury": "0",
+        "toReferee": "0"
+      },
+      "onChain": true
+    },
+    {
+      "name": "rounding: 33 units of net is still no fee",
+      "input": {
+        "format": "bet",
+        "stakeCreator": "33",
+        "stakeOpponent": "33",
+        "feeBps": 300,
+        "outcome": "creator_wins",
+        "ruledByReferee": false
+      },
+      "expected": {
+        "kind": "payout",
+        "pot": "66",
+        "fee": "0",
+        "toCreator": "66",
+        "toOpponent": "0",
+        "toTreasury": "0",
+        "toReferee": "0"
+      },
+      "onChain": true
+    },
+    {
+      "name": "rounding: 34 units of net is the first whole unit of fee",
+      "input": {
+        "format": "bet",
+        "stakeCreator": "34",
+        "stakeOpponent": "34",
+        "feeBps": 300,
+        "outcome": "creator_wins",
+        "ruledByReferee": false
+      },
+      "expected": {
+        "kind": "payout",
+        "pot": "68",
+        "fee": "1",
+        "toCreator": "67",
+        "toOpponent": "0",
+        "toTreasury": "1",
+        "toReferee": "0"
+      },
+      "onChain": true
+    },
+    {
+      "name": "rounding: 3333 units floors to 99",
+      "input": {
+        "format": "bet",
+        "stakeCreator": "3333",
+        "stakeOpponent": "3333",
+        "feeBps": 300,
+        "outcome": "opponent_wins",
+        "ruledByReferee": false
+      },
+      "expected": {
+        "kind": "payout",
+        "pot": "6666",
+        "fee": "99",
+        "toCreator": "0",
+        "toOpponent": "6567",
+        "toTreasury": "99",
+        "toReferee": "0"
+      },
+      "onChain": true
+    },
+    {
+      "name": "rounding: 3334 units reaches 100",
+      "input": {
+        "format": "bet",
+        "stakeCreator": "3334",
+        "stakeOpponent": "3334",
+        "feeBps": 300,
+        "outcome": "opponent_wins",
+        "ruledByReferee": false
+      },
+      "expected": {
+        "kind": "payout",
+        "pot": "6668",
+        "fee": "100",
+        "toCreator": "0",
+        "toOpponent": "6568",
+        "toTreasury": "100",
+        "toReferee": "0"
+      },
+      "onChain": true
+    },
+    {
+      "name": "commit kept: the author keeps their stake and pays nothing",
+      "input": {
+        "format": "commit",
+        "stakeCreator": "20000000",
+        "stakeOpponent": "0",
+        "feeBps": 300,
+        "outcome": "creator_wins",
+        "ruledByReferee": false
+      },
+      "expected": {
+        "kind": "payout",
+        "pot": "20000000",
+        "fee": "0",
+        "toCreator": "20000000",
+        "toOpponent": "0",
+        "toTreasury": "0",
+        "toReferee": "0"
+      },
+      "onChain": false
+    },
+    {
+      "name": "commit failed: the stake goes to the beneficiary, less the fee",
+      "input": {
+        "format": "commit",
+        "stakeCreator": "20000000",
+        "stakeOpponent": "0",
+        "feeBps": 300,
+        "outcome": "opponent_wins",
+        "ruledByReferee": false
+      },
+      "expected": {
+        "kind": "payout",
+        "pot": "20000000",
+        "fee": "600000",
+        "toCreator": "0",
+        "toOpponent": "19400000",
+        "toTreasury": "600000",
+        "toReferee": "0"
+      },
+      "onChain": false
+    },
+    {
+      "name": "referee rules a win: their share comes out of the fee, not on top",
+      "input": {
+        "format": "bet",
+        "stakeCreator": "20000000",
+        "stakeOpponent": "20000000",
+        "feeBps": 300,
+        "outcome": "creator_wins",
+        "ruledByReferee": true
+      },
+      "expected": {
+        "kind": "payout",
+        "pot": "40000000",
+        "fee": "600000",
+        "toCreator": "39400000",
+        "toOpponent": "0",
+        "toTreasury": "400000",
+        "toReferee": "200000"
+      },
+      "onChain": false
+    },
+    {
+      "name": "referee rules a draw: no winnings, so no share",
+      "input": {
+        "format": "bet",
+        "stakeCreator": "20000000",
+        "stakeOpponent": "20000000",
+        "feeBps": 300,
+        "outcome": "draw",
+        "ruledByReferee": true
+      },
+      "expected": {
+        "kind": "refund",
+        "pot": "40000000",
+        "fee": "0",
+        "toCreator": "20000000",
+        "toOpponent": "20000000",
+        "toTreasury": "0",
+        "toReferee": "0"
+      },
+      "onChain": false
+    },
+    {
+      "name": "referee share on a small pot, where the two floors could disagree",
+      "input": {
+        "format": "bet",
+        "stakeCreator": "199",
+        "stakeOpponent": "199",
+        "feeBps": 300,
+        "outcome": "creator_wins",
+        "ruledByReferee": true
+      },
+      "expected": {
+        "kind": "payout",
+        "pot": "398",
+        "fee": "5",
+        "toCreator": "393",
+        "toOpponent": "0",
+        "toTreasury": "4",
+        "toReferee": "1"
+      },
+      "onChain": false
+    }
+  ]
+}
