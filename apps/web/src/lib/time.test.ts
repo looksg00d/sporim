@@ -7,6 +7,7 @@ import {
   formatDeadlineShort,
   formatLead,
   fromDatetimeLocalValue,
+  isValidTimeZone,
   toDatetimeLocalValue,
 } from './time';
 
@@ -115,8 +116,39 @@ describe('datetime-local round trip', () => {
 });
 
 describe('formatting', () => {
-  it('names the weekday and the time, in 24h', () => {
-    expect(formatDeadlineShort(endOfLocalDay(TUESDAY_NOON))).toMatch(/^\w{3},? 23:59$/);
+  it('names the weekday and the time, in 24h, inside the coming week', () => {
+    const opts = { nowSeconds: TUESDAY_NOON };
+    expect(formatDeadlineShort(endOfLocalDay(TUESDAY_NOON), opts)).toMatch(/^\w{3},? 23:59$/);
+    expect(formatDeadlineShort(endOfLocalDay(TUESDAY_NOON, 5), opts)).toMatch(
+      /^[A-Z][a-z]{2},? 23:59$/,
+    );
+  });
+
+  it('switches to the date a week out, where a weekday would name the wrong one', () => {
+    const opts = { nowSeconds: TUESDAY_NOON };
+    expect(formatDeadlineShort(endOfLocalDay(TUESDAY_NOON, 6), opts)).toMatch(/^8 Sept?,? 23:59$/);
+    expect(formatDeadlineShort(endOfLocalDay(TUESDAY_NOON, 30), opts)).toMatch(/^2 Oct,? 23:59$/);
+  });
+
+  it('uses the date for a deadline already past, which has no "this" weekday', () => {
+    expect(formatDeadlineShort(TUESDAY_NOON - 60, { nowSeconds: TUESDAY_NOON })).toMatch(/2 Sep/);
+  });
+
+  it('formats in the zone it is given, not the runtime’s', () => {
+    const utcNoon = Date.UTC(2026, 8, 2, 12, 0) / 1000;
+    const opts = { nowSeconds: utcNoon - 3600 };
+    expect(formatDeadlineShort(utcNoon, { ...opts, timeZone: 'UTC' })).toMatch(/12:00$/);
+    expect(formatDeadlineShort(utcNoon, { ...opts, timeZone: 'Europe/Moscow' })).toMatch(/15:00$/);
+  });
+
+  it('names the zone when asked, for a server that had to guess', () => {
+    const utcNoon = Date.UTC(2026, 8, 2, 12, 0) / 1000;
+    const line = formatDeadlineShort(utcNoon, {
+      nowSeconds: utcNoon - 3600,
+      timeZone: 'UTC',
+      showZone: true,
+    });
+    expect(line).toMatch(/UTC/);
   });
 
   it('adds the date for anything further out', () => {
@@ -133,5 +165,14 @@ describe('formatting', () => {
 
   it('never counts backwards', () => {
     expect(formatLead(100, 50)).toBe('now');
+  });
+});
+
+describe('isValidTimeZone', () => {
+  it('accepts an IANA zone and refuses anything else', () => {
+    expect(isValidTimeZone('Europe/Moscow')).toBe(true);
+    expect(isValidTimeZone('UTC')).toBe(true);
+    expect(isValidTimeZone('Mars/Olympus')).toBe(false);
+    expect(isValidTimeZone('"; drop table')).toBe(false);
   });
 });
