@@ -23,6 +23,11 @@ pub const MIN_DEADLINE_LEAD_SECONDS: i64 = 15 * 60;
 pub const MAX_DEADLINE_LEAD_SECONDS: i64 = 365 * 86_400;
 pub const CLAIM_WINDOW_SECONDS: i64 = 48 * 3_600;
 
+/// Mirrors the domain's `CLAIM_GRACE_SECONDS`. After `deadline + CLAIM_GRACE_SECONDS` with no
+/// claim the bet is abandoned: nobody may claim it any more, and anybody may refund it. Checked
+/// against `constants.v1.json` by `tests/constants_parity.rs`.
+pub const CLAIM_GRACE_SECONDS: i64 = 14 * 86_400;
+
 /// Devnet-only admin/treasury wallet, generated for this milestone
 /// (`~/.config/solana/sporim/treasury.json`, never checked in). A real `Config` account replaces
 /// this with a settable value before mainnet — see the module doc above.
