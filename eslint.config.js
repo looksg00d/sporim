@@ -17,6 +17,8 @@ export default [
       'data/**',
       'reference/**',
       'tools/**',
+      // Local output of the /brag video skill: generated HTML/JS, not project code.
+      'brag-output/**',
     ],
   },
   ...base,

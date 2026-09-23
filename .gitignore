@@ -63,3 +63,6 @@ Thumbs.db
 
 .vercel
 .env*.local
+
+# /brag launch-video output (local, regenerated on demand)
+brag-output/
