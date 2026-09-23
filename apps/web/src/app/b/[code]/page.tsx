@@ -10,6 +10,7 @@ import {
   formatUsdc,
   isRefereeConfirmed,
   isShortCode,
+  isTerminal,
   type Bet,
   type BetAction,
   type Outcome,
@@ -19,6 +20,7 @@ import {
   BetCard,
   PayoutBreakdown,
   PillButton,
+  PillLink,
   color,
   radius,
   space,
@@ -27,6 +29,10 @@ import {
 } from '@sporim/ui';
 import { SignInWall } from '@/features/auth/SignInWall';
 import { AcceptPanel } from '@/features/bet/AcceptPanel';
+import { RematchButton } from '@/features/bet/RematchButton';
+import { canRematch, rematchDraft } from '@/features/bet/rematch';
+import { ShareLink } from '@/features/bet/ShareLink';
+import { OpenInPhantom } from '@/features/wallet/OpenInPhantom';
 import { isMockChain } from '@/lib/env';
 import { betUrl } from '@/features/bet/links';
 import { whatHappensNext } from '@/features/bet/next-step';
@@ -40,6 +46,7 @@ import {
   settleByTimeout,
 } from '@/server/actions/bet';
 import { currentPrivyDid } from '@/server/auth/session';
+import { deadlineOptions, viewerTimeZone } from '@/server/time-zone';
 import { readBetByShortCode, type AcceptStatus } from '@/server/db/accept.repo';
 
 /**
@@ -152,9 +159,9 @@ function OutcomeButton({
  * The moves, drawn from `allowedActions` and nothing else.
  *
  * `accept` is not among them, and is not drawn here at all: taking the other side needs a
- * signature, so it gets a panel of its own rather than a button in a list. `share` needs a
- * clipboard, which needs a client component; the link is printed instead, which works
- * everywhere and can be long-pressed on a phone.
+ * signature, so it gets a panel of its own rather than a button in a list. `share` is the one
+ * client island here: a share sheet or the clipboard, with the link still printed beside it
+ * for the webview that allows neither.
  */
 function Actions({
   bet,
@@ -278,6 +285,7 @@ function Actions({
           >
             {betUrl(code)}
           </code>
+          <ShareLink url={betUrl(code)} text={ACTION_LABEL.accept} />
           <span style={{ ...typeStyle('micro'), color: color.inkFaint }}>
             {TRUST_COPY.linkWarning}
           </span>
@@ -348,6 +356,7 @@ export default async function BetPage({ params }: { params: Promise<{ code: stri
 
   const privyDid = await currentPrivyDid();
   const now = nowSeconds();
+  const dates = deadlineOptions(await viewerTimeZone(), now);
 
   const found = await readBetByShortCode(code, privyDid, now);
   // A code nobody minted and a malformed one answer alike, so the page is never an oracle for
@@ -374,7 +383,7 @@ export default async function BetPage({ params }: { params: Promise<{ code: stri
         terms={bet.terms}
         rows={standardRows({
           pot,
-          deadlineLabel: formatDeadlineShort(bet.deadlineSeconds),
+          deadlineLabel: formatDeadlineShort(bet.deadlineSeconds, dates),
           decidedBy: bet.referee?.displayName ?? 'Both of you',
           refereeConfirmed: bet.referee ? isRefereeConfirmed(bet.referee) : null,
           ...(isMockChain ? { escrowLabel: 'Simulated' } : {}),
@@ -382,8 +391,11 @@ export default async function BetPage({ params }: { params: Promise<{ code: stri
       />
 
       <p style={{ margin: 0, ...typeStyle('body'), color: color.ink }}>
-        {whatHappensNext(bet, role, now)}
+        {whatHappensNext(bet, role, now, dates)}
       </p>
+
+      {/* The person taking the bet most likely opened this from a DM, in a webview with no wallet. */}
+      {status === 'open' || status === 'anonymous' ? <OpenInPhantom /> : null}
 
       {status === 'open' ? (
         <AcceptPanel code={code} stakeLabel={`${formatUsdc(bet.stakeCreator)} USDC`} />
@@ -407,6 +419,15 @@ export default async function BetPage({ params }: { params: Promise<{ code: stri
       ) : null}
 
       <Actions bet={bet} role={role} actions={actions} code={code} />
+
+      {canRematch(bet, role) ? <RematchButton draft={rematchDraft(bet)} /> : null}
+
+      {(status === 'party' || status === 'yours') && !isTerminal(bet.state) ? (
+        // The only thing that reaches a person at the deadline: their own calendar.
+        <PillLink href={`/b/${code}/calendar`} download variant="secondary" icon="clock" fullWidth>
+          Add the deadline to your calendar
+        </PillLink>
+      ) : null}
 
       <p style={{ margin: 0, ...typeStyle('micro'), color: color.inkFaint }}>
         {STATE_COPY[bet.state]} · {TRUST_COPY.fee}
