@@ -303,3 +303,82 @@ fn an_uncontested_claim_cannot_be_settled_inside_its_window() {
     let settle = w.settle_ix(&stranger);
     assert!(w.run(settle, &stranger).is_err());
 }
+
+// ── Review 2026-09-24, critical: a donation to the vault must not lock the bet ──────────
+
+/// One base unit: the cheapest possible attack. The payouts are computed from the bet's
+/// fields, so without a sweep the vault keeps that unit and refuses to close.
+const DUST: u64 = 1;
+
+/// Runs `finish` after a stranger dusted the vault, and checks the bet still closes and the
+/// dust went to the creator rather than staying behind.
+fn finishes_despite_dust(w: &mut World, ix: Instruction, signer: &Keypair, creator_expected: u64) {
+    w.donate_to_vault(DUST);
+    w.run(ix, signer).expect("a donated unit must not block the terminal transition");
+    assert!(!w.exists(w.vault()), "vault closed");
+    assert!(!w.exists(w.bet()), "bet closed");
+    assert_eq!(w.balance(w.creator.pubkey()), creator_expected + DUST, "dust swept to creator");
+}
+
+#[test]
+fn dust_does_not_block_cancel() {
+    let Some(mut w) = world() else { return };
+    w.create();
+    let creator = w.creator.insecure_clone();
+    let ix = w.cancel_ix();
+    finishes_despite_dust(&mut w, ix, &creator, FUNDED);
+}
+
+#[test]
+fn dust_does_not_block_expiry() {
+    let Some(mut w) = world() else { return };
+    w.create();
+    w.set_time(ACCEPT_DEADLINE);
+    let stranger = w.stranger.insecure_clone();
+    let ix = w.expire_ix(&stranger);
+    finishes_despite_dust(&mut w, ix, &stranger, FUNDED);
+}
+
+#[test]
+fn dust_does_not_block_confirm() {
+    let Some(mut w) = world() else { return };
+    w.active_at_deadline();
+    let (creator, opponent) = (w.creator.insecure_clone(), w.opponent.insecure_clone());
+    let claim = w.claim_ix(&creator, Outcome::OpponentWins);
+    w.run(claim, &creator).expect("claimed");
+    let ix = w.confirm_ix(&opponent);
+    finishes_despite_dust(&mut w, ix, &opponent, FUNDED - STAKE);
+}
+
+#[test]
+fn dust_does_not_block_settle() {
+    let Some(mut w) = world() else { return };
+    w.active_at_deadline();
+    let (creator, stranger) = (w.creator.insecure_clone(), w.stranger.insecure_clone());
+    let claim = w.claim_ix(&creator, Outcome::OpponentWins);
+    w.run(claim, &creator).expect("claimed");
+    w.set_time(DEADLINE + sporim::constants::CLAIM_WINDOW_SECONDS);
+    let ix = w.settle_ix(&stranger);
+    finishes_despite_dust(&mut w, ix, &stranger, FUNDED - STAKE);
+}
+
+#[test]
+fn dust_does_not_block_refund() {
+    let Some(mut w) = world() else { return };
+    w.active_at_deadline();
+    w.set_time(GRACE_ENDS);
+    let stranger = w.stranger.insecure_clone();
+    let ix = w.refund_expired_ix(&stranger);
+    finishes_despite_dust(&mut w, ix, &stranger, FUNDED);
+}
+
+#[test]
+fn dust_does_not_block_dispute() {
+    let Some(mut w) = world() else { return };
+    w.active_at_deadline();
+    let (creator, opponent) = (w.creator.insecure_clone(), w.opponent.insecure_clone());
+    let claim = w.claim_ix(&creator, Outcome::CreatorWins);
+    w.run(claim, &creator).expect("claimed");
+    let ix = w.dispute_ix(&opponent);
+    finishes_despite_dust(&mut w, ix, &opponent, FUNDED);
+}

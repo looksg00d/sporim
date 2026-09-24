@@ -2,7 +2,9 @@ use crate::constants::{BET_SEED, BPS_DENOMINATOR, FEE_BPS};
 use crate::error::ErrorCode;
 use crate::state::Outcome;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{close_account, transfer_checked, CloseAccount, TransferChecked};
+use anchor_spl::token::{
+    close_account, transfer_checked, CloseAccount, TokenAccount, TransferChecked,
+};
 
 /// Mirrors `calculateSettlement` in `packages/domain/src/money/settlement.ts` for the `Bet`
 /// format with no referee (this increment has none — see `constants.rs`). Checked arithmetic
@@ -145,21 +147,46 @@ pub fn refund_both<'info>(
     Ok(())
 }
 
-/// Closes the emptied vault and returns its rent to `destination` — the bet's `rent_payer`.
+/// Sweeps whatever is left in the vault to `sweep_to`, then closes it and returns its rent to
+/// `destination` — the bet's `rent_payer`. Called last by every terminal instruction.
 ///
-/// Called last by every terminal instruction. The token program refuses to close an account
-/// with a balance, so this doubles as the invariant: a terminal transition that left so much
-/// as one base unit in the vault fails instead of stranding it.
+/// Why the sweep. Payouts are computed from the bet's fields, not from the vault's balance,
+/// and the vault is an ordinary ATA anyone can transfer into. Before the sweep, one base unit
+/// sent by a stranger made `close_account` fail (`NonNativeHasBalance`) and locked every
+/// terminal path for good — both stakes with it (review, 2026-09-24). What is left after the
+/// payouts can only be such a gift, so it goes to the creator, whose account every terminal
+/// instruction already carries.
+#[allow(clippy::too_many_arguments)]
 pub fn close_vault<'info>(
     bet_id: [u8; 16],
     bump: u8,
+    decimals: u8,
     token_program: Pubkey,
+    mint: AccountInfo<'info>,
     vault: AccountInfo<'info>,
     bet: AccountInfo<'info>,
+    sweep_to: AccountInfo<'info>,
     destination: AccountInfo<'info>,
 ) -> Result<()> {
     let seeds: &[&[u8]] = &[BET_SEED, &bet_id, &[bump]];
     let signer_seeds: &[&[&[u8]]] = &[seeds];
+
+    // Read after the payouts' CPIs, so this is the balance as it stands now.
+    let leftover = {
+        let data = vault.try_borrow_data()?;
+        TokenAccount::try_deserialize(&mut &data[..])?.amount
+    };
+    if leftover > 0 {
+        let cpi_accounts = TransferChecked {
+            from: vault.clone(),
+            mint,
+            to: sweep_to,
+            authority: bet.clone(),
+        };
+        let cpi_ctx = CpiContext::new_with_signer(token_program, cpi_accounts, signer_seeds);
+        transfer_checked(cpi_ctx, leftover, decimals)?;
+    }
+
     let cpi_accounts = CloseAccount {
         account: vault,
         destination,

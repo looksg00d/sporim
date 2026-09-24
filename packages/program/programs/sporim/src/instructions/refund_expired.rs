@@ -100,9 +100,12 @@ pub fn handle_refund_expired(ctx: Context<RefundExpired>) -> Result<()> {
     close_vault(
         ctx.accounts.bet.bet_id,
         ctx.accounts.bet.bump,
+        ctx.accounts.mint.decimals,
         ctx.accounts.token_program.key(),
+        ctx.accounts.mint.to_account_info(),
         ctx.accounts.vault.to_account_info(),
         ctx.accounts.bet.to_account_info(),
+        ctx.accounts.creator_token_account.to_account_info(),
         ctx.accounts.rent_payer.to_account_info(),
     )
 }

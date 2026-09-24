@@ -166,6 +166,23 @@ impl World {
         send(&mut self.svm, &payer, &[ix], &[]).expect("minted");
     }
 
+    /// A stranger sends `amount` straight to the vault — no instruction of ours involved. The
+    /// vault is an ordinary ATA and its address is public, so anyone can do this.
+    pub fn donate_to_vault(&mut self, amount: u64) {
+        let stranger = self.stranger.insecure_clone();
+        let ix = spl_token::instruction::transfer(
+            &spl_token::ID,
+            &self.ata(stranger.pubkey()),
+            &self.vault(),
+            &stranger.pubkey(),
+            &[],
+            amount,
+        )
+        .expect("transfer ix");
+        let payer = self.payer.insecure_clone();
+        send(&mut self.svm, &payer, &[ix], &[&stranger]).expect("donated");
+    }
+
     pub fn set_time(&mut self, unix: i64) {
         let mut clock: Clock = self.svm.get_sysvar();
         clock.unix_timestamp = unix;
