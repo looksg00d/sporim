@@ -3,7 +3,7 @@ use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{transfer_checked, Mint, Token, TokenAccount, TransferChecked};
 
 use crate::constants::{
-    BET_SEED, MAX_DEADLINE_LEAD_SECONDS, MAX_STAKE, MIN_DEADLINE_LEAD_SECONDS, MIN_STAKE,
+    allowed_mint, BET_SEED, MAX_DEADLINE_LEAD_SECONDS, MAX_STAKE, MIN_DEADLINE_LEAD_SECONDS, MIN_STAKE,
 };
 use crate::error::ErrorCode;
 use crate::state::{Bet, BetState};
@@ -32,6 +32,7 @@ pub struct CreateBet<'info> {
     )]
     pub bet: Account<'info, Bet>,
 
+    #[account(address = allowed_mint() @ ErrorCode::WrongMint)]
     pub mint: Account<'info, Mint>,
 
     #[account(

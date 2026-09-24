@@ -73,24 +73,10 @@ pub fn world() -> Option<World> {
         svm.airdrop(&who.pubkey(), 10_000_000_000).expect("airdrop");
     }
 
-    let mint = Keypair::new();
-    let rent = svm.minimum_balance_for_rent_exemption(spl_token::state::Mint::LEN);
-    let create_mint = solana_system_interface::instruction::create_account(
-        &payer.pubkey(),
-        &mint.pubkey(),
-        rent,
-        spl_token::state::Mint::LEN as u64,
-        &spl_token::ID,
-    );
-    let init_mint = spl_token::instruction::initialize_mint2(
-        &spl_token::ID,
-        &mint.pubkey(),
-        &payer.pubkey(),
-        None,
-        6,
-    )
-    .expect("init mint ix");
-    send(&mut svm, &payer, &[create_mint, init_mint], &[&mint]).expect("mint created");
+    // The program accepts one mint, so the test mint is written at that address directly,
+    // with the test payer as its mint authority.
+    let mint = sporim::constants::allowed_mint();
+    put_mint(&mut svm, mint, payer.pubkey());
 
     let mut world = World {
         svm,
@@ -98,7 +84,7 @@ pub fn world() -> Option<World> {
         creator,
         opponent,
         stranger,
-        mint: mint.pubkey(),
+        mint,
         bet_id: *b"bet-0000-0000-01",
     };
     for owner in [
@@ -114,6 +100,31 @@ pub fn world() -> Option<World> {
     }
     world.set_time(START);
     Some(world)
+}
+
+/// Writes an initialised 6-decimal mint account at `address`.
+pub fn put_mint(svm: &mut LiteSVM, address: Pubkey, authority: Pubkey) {
+    let state = spl_token::state::Mint {
+        mint_authority: solana_program_option::COption::Some(authority),
+        supply: 0,
+        decimals: 6,
+        is_initialized: true,
+        freeze_authority: solana_program_option::COption::None,
+    };
+    let mut data = vec![0u8; spl_token::state::Mint::LEN];
+    spl_token::state::Mint::pack(state, &mut data).expect("mint packs");
+    let lamports = svm.minimum_balance_for_rent_exemption(data.len());
+    svm.set_account(
+        address,
+        solana_account::Account {
+            lamports,
+            data,
+            owner: spl_token::ID,
+            executable: false,
+            rent_epoch: 0,
+        },
+    )
+    .expect("mint written");
 }
 
 pub fn send(
@@ -152,7 +163,7 @@ impl World {
         send(&mut self.svm, &payer, &[ix], &[]).expect("ata created");
     }
 
-    fn mint_to(&mut self, owner: Pubkey, amount: u64) {
+    pub fn mint_to(&mut self, owner: Pubkey, amount: u64) {
         let ix = spl_token::instruction::mint_to(
             &spl_token::ID,
             &self.mint,

@@ -304,6 +304,33 @@ fn an_uncontested_claim_cannot_be_settled_inside_its_window() {
     assert!(w.run(settle, &stranger).is_err());
 }
 
+// ── Review 2026-09-24, high: one mint only ──────────────────────────────────────────────
+
+#[test]
+fn a_bet_in_any_other_mint_is_refused() {
+    let Some(mut w) = world() else { return };
+    let other = Keypair::new().pubkey();
+    let authority = w.payer.pubkey();
+    put_mint(&mut w.svm, other, authority);
+    w.mint = other;
+    // Token accounts for the other mint so the only thing wrong is the mint itself.
+    for owner in [w.creator.pubkey()] {
+        let ix = anchor_spl::associated_token::spl_associated_token_account::instruction::create_associated_token_account(
+            &w.payer.pubkey(),
+            &owner,
+            &other,
+            &anchor_spl::token::ID,
+        );
+        let payer = w.payer.insecure_clone();
+        send(&mut w.svm, &payer, &[ix], &[]).expect("ata");
+    }
+    // Funded, so a refusal can only come from the mint check and not from an empty account.
+    w.mint_to(w.creator.pubkey(), FUNDED);
+    let creator = w.creator.insecure_clone();
+    let create = w.create_ix();
+    assert!(w.run(create, &creator).is_err(), "only the allowed mint");
+}
+
 // ── Review 2026-09-24, critical: a donation to the vault must not lock the bet ──────────
 
 /// One base unit: the cheapest possible attack. The payouts are computed from the bet's
