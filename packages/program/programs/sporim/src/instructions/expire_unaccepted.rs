@@ -3,6 +3,7 @@ use anchor_spl::token::{transfer_checked, Mint, Token, TokenAccount, TransferChe
 
 use crate::constants::BET_SEED;
 use crate::error::ErrorCode;
+use crate::rules::{require_allowed, Action, RuleInput};
 use crate::settlement::close_vault;
 use crate::state::{Bet, BetState};
 
@@ -47,14 +48,11 @@ pub struct ExpireUnaccepted<'info> {
 }
 
 pub fn handle_expire_unaccepted(ctx: Context<ExpireUnaccepted>) -> Result<()> {
-    require!(ctx.accounts.bet.state == BetState::Open, ErrorCode::InvalidState);
+    let now = Clock::get()?.unix_timestamp;
+    let rule = RuleInput::for_bet(&ctx.accounts.bet, ctx.accounts.caller.key(), now);
+    require_allowed(&rule, Action::ExpireUnaccepted)?;
     require_keys_eq!(ctx.accounts.bet.mint, ctx.accounts.mint.key(), ErrorCode::WrongMint);
 
-    let now = Clock::get()?.unix_timestamp;
-    require!(
-        now >= ctx.accounts.bet.accept_deadline,
-        ErrorCode::AcceptWindowNotExpired
-    );
 
     let stake_creator = ctx.accounts.bet.stake_creator;
     let bet_id = ctx.accounts.bet.bet_id;

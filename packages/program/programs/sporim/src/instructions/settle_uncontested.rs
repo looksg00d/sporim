@@ -3,6 +3,7 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use crate::constants::{treasury, BET_SEED};
 use crate::error::ErrorCode;
+use crate::rules::{require_allowed, Action, RuleInput};
 use crate::settlement::{calculate_settlement, distribute, close_vault};
 use crate::state::{Bet, BetState};
 
@@ -59,14 +60,11 @@ pub struct SettleUncontested<'info> {
 }
 
 pub fn handle_settle_uncontested(ctx: Context<SettleUncontested>) -> Result<()> {
-    require!(ctx.accounts.bet.state == BetState::Claimed, ErrorCode::InvalidState);
+    let now = Clock::get()?.unix_timestamp;
+    let rule = RuleInput::for_bet(&ctx.accounts.bet, ctx.accounts.caller.key(), now);
+    require_allowed(&rule, Action::SettleUncontested)?;
     require_keys_eq!(ctx.accounts.bet.mint, ctx.accounts.mint.key(), ErrorCode::WrongMint);
 
-    let now = Clock::get()?.unix_timestamp;
-    require!(
-        now >= ctx.accounts.bet.claim_window_ends,
-        ErrorCode::ClaimWindowNotExpired
-    );
 
     let opponent = ctx.accounts.bet.opponent.ok_or(ErrorCode::InvalidState)?;
     require_keys_eq!(

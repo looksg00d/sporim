@@ -233,3 +233,73 @@ fn rent_cannot_be_redirected_to_somebody_else() {
     }
     assert!(w.run(ix, &creator).is_err(), "rent_payer is pinned to the bet");
 }
+
+// ── B5: every instruction asks rules.rs ─────────────────────────────────────────────────
+
+#[test]
+fn a_claim_cannot_be_confirmed_once_its_window_has_closed() {
+    let Some(mut w) = world() else { return };
+    w.active_at_deadline();
+    let (creator, opponent) = (w.creator.insecure_clone(), w.opponent.insecure_clone());
+    let claim = w.claim_ix(&creator, Outcome::CreatorWins);
+    w.run(claim, &creator).expect("claimed");
+    w.set_time(DEADLINE + sporim::constants::CLAIM_WINDOW_SECONDS);
+
+    // Past the window the claim stands on its own; agreeing now is not a move the domain offers.
+    let confirm = w.confirm_ix(&opponent);
+    assert!(w.run(confirm, &opponent).is_err(), "only settle_uncontested is left");
+}
+
+#[test]
+fn the_creator_cannot_take_their_own_bet() {
+    let Some(mut w) = world() else { return };
+    w.create();
+    let creator = w.creator.insecure_clone();
+    let accept = w.accept_ix(&creator);
+    assert!(w.run(accept, &creator).is_err());
+}
+
+#[test]
+fn nobody_takes_a_bet_after_its_accept_window() {
+    let Some(mut w) = world() else { return };
+    w.create();
+    w.set_time(ACCEPT_DEADLINE);
+    let stranger = w.stranger.insecure_clone();
+    let accept = w.accept_ix(&stranger);
+    assert!(w.run(accept, &stranger).is_err());
+}
+
+#[test]
+fn only_the_creator_cancels() {
+    let Some(mut w) = world() else { return };
+    w.create();
+    let stranger = w.stranger.insecure_clone();
+    let mut cancel = w.cancel_ix();
+    let creator = w.creator.pubkey();
+    for meta in cancel.accounts.iter_mut().filter(|m| m.pubkey == creator) {
+        meta.pubkey = stranger.pubkey();
+    }
+    assert!(w.run(cancel, &stranger).is_err());
+}
+
+#[test]
+fn an_unaccepted_bet_cannot_be_expired_early() {
+    let Some(mut w) = world() else { return };
+    w.create();
+    w.set_time(ACCEPT_DEADLINE - 1);
+    let stranger = w.stranger.insecure_clone();
+    let expire = w.expire_ix(&stranger);
+    assert!(w.run(expire, &stranger).is_err());
+}
+
+#[test]
+fn an_uncontested_claim_cannot_be_settled_inside_its_window() {
+    let Some(mut w) = world() else { return };
+    w.active_at_deadline();
+    let (creator, stranger) = (w.creator.insecure_clone(), w.stranger.insecure_clone());
+    let claim = w.claim_ix(&creator, Outcome::CreatorWins);
+    w.run(claim, &creator).expect("claimed");
+    w.set_time(DEADLINE + sporim::constants::CLAIM_WINDOW_SECONDS - 1);
+    let settle = w.settle_ix(&stranger);
+    assert!(w.run(settle, &stranger).is_err());
+}

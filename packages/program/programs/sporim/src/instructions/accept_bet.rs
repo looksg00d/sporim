@@ -3,6 +3,7 @@ use anchor_spl::token::{transfer_checked, Mint, Token, TokenAccount, TransferChe
 
 use crate::constants::BET_SEED;
 use crate::error::ErrorCode;
+use crate::rules::{require_allowed, Action, RuleInput};
 use crate::state::{Bet, BetState};
 
 /// Takes the other side. Mirrors `accept.repo.ts`: whoever calls this first, is not the
@@ -41,18 +42,12 @@ pub struct AcceptBet<'info> {
 }
 
 pub fn handle_accept_bet(ctx: Context<AcceptBet>) -> Result<()> {
-    let bet = &mut ctx.accounts.bet;
-
-    require!(bet.state == BetState::Open, ErrorCode::InvalidState);
-    require_keys_eq!(bet.mint, ctx.accounts.mint.key(), ErrorCode::WrongMint);
-
     let now = Clock::get()?.unix_timestamp;
-    require!(now < bet.accept_deadline, ErrorCode::AcceptWindowExpired);
-    require_keys_neq!(
-        ctx.accounts.opponent.key(),
-        bet.creator,
-        ErrorCode::CreatorCannotAccept
-    );
+    let rule = RuleInput::for_bet(&ctx.accounts.bet, ctx.accounts.opponent.key(), now);
+    require_allowed(&rule, Action::Accept)?;
+    require_keys_eq!(ctx.accounts.bet.mint, ctx.accounts.mint.key(), ErrorCode::WrongMint);
+
+    let bet = &mut ctx.accounts.bet;
 
     bet.opponent = Some(ctx.accounts.opponent.key());
     bet.state = BetState::Active;

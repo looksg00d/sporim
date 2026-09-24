@@ -3,6 +3,7 @@ use anchor_spl::token::{transfer_checked, Mint, Token, TokenAccount, TransferChe
 
 use crate::constants::BET_SEED;
 use crate::error::ErrorCode;
+use crate::rules::{require_allowed, Action, RuleInput};
 use crate::settlement::close_vault;
 use crate::state::{Bet, BetState};
 
@@ -46,12 +47,9 @@ pub struct CancelBet<'info> {
 }
 
 pub fn handle_cancel_bet(ctx: Context<CancelBet>) -> Result<()> {
-    require!(ctx.accounts.bet.state == BetState::Open, ErrorCode::InvalidState);
-    require_keys_eq!(
-        ctx.accounts.creator.key(),
-        ctx.accounts.bet.creator,
-        ErrorCode::OnlyCreatorCancels
-    );
+    let now = Clock::get()?.unix_timestamp;
+    let rule = RuleInput::for_bet(&ctx.accounts.bet, ctx.accounts.creator.key(), now);
+    require_allowed(&rule, Action::Cancel)?;
     require_keys_eq!(ctx.accounts.bet.mint, ctx.accounts.mint.key(), ErrorCode::WrongMint);
 
     let stake_creator = ctx.accounts.bet.stake_creator;
