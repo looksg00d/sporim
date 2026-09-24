@@ -3,6 +3,7 @@ use anchor_spl::token::{transfer_checked, Mint, Token, TokenAccount, TransferChe
 
 use crate::constants::BET_SEED;
 use crate::error::ErrorCode;
+use crate::settlement::close_vault;
 use crate::state::{Bet, BetState};
 
 /// Permissionless: anyone may call this once the accept window has lapsed with nobody having
@@ -17,6 +18,7 @@ pub struct ExpireUnaccepted<'info> {
         mut,
         seeds = [BET_SEED, bet.bet_id.as_ref()],
         bump = bet.bump,
+        close = rent_payer,
     )]
     pub bet: Account<'info, Bet>,
 
@@ -35,6 +37,11 @@ pub struct ExpireUnaccepted<'info> {
         associated_token::authority = bet.creator,
     )]
     pub creator_token_account: Account<'info, TokenAccount>,
+
+    /// Receives the rent back as the bet and its vault close.
+    /// CHECK: only ever credited lamports; its address is pinned to the one stored on the bet.
+    #[account(mut, address = bet.rent_payer)]
+    pub rent_payer: UncheckedAccount<'info>,
 
     pub token_program: Program<'info, Token>,
 }
@@ -73,5 +80,12 @@ pub fn handle_expire_unaccepted(ctx: Context<ExpireUnaccepted>) -> Result<()> {
     let cpi_ctx = CpiContext::new_with_signer(token_program_id, cpi_accounts, signer_seeds);
     transfer_checked(cpi_ctx, stake_creator, decimals)?;
 
-    Ok(())
+    close_vault(
+        ctx.accounts.bet.bet_id,
+        ctx.accounts.bet.bump,
+        ctx.accounts.token_program.key(),
+        ctx.accounts.vault.to_account_info(),
+        ctx.accounts.bet.to_account_info(),
+        ctx.accounts.rent_payer.to_account_info(),
+    )
 }

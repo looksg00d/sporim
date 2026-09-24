@@ -4,6 +4,7 @@ mod common;
 
 use common::*;
 use solana_signer::Signer;
+use solana_keypair::Keypair;
 use sporim::state::{BetState, Outcome};
 
 #[test]
@@ -22,7 +23,6 @@ fn a_confirmed_claim_pays_the_winner_and_the_fee() {
     assert_eq!(w.balance(opponent.pubkey()), FUNDED - STAKE);
     assert_eq!(w.balance(sporim::constants::treasury()), 600_000);
     assert_eq!(w.token_balance(w.vault()), 0);
-    assert!(w.state() == BetState::Resolved);
 }
 
 const GRACE_ENDS: i64 = DEADLINE + sporim::constants::CLAIM_GRACE_SECONDS;
@@ -123,4 +123,113 @@ fn a_stranger_cannot_dispute() {
     w.run(claim, &creator).expect("claimed");
     let dispute = w.dispute_ix(&stranger);
     assert!(w.run(dispute, &stranger).is_err(), "not a party");
+}
+
+// ── B4: every terminal transition closes the bet and returns the rent ───────────────────
+
+/// Two signatures per transaction in these stories: the payer and the acting signer.
+const FEE: u64 = 2 * 5_000;
+
+/// Sends `ix` as the last move of a story and checks the invariant: the bet and its vault no
+/// longer exist, and the rent payer got back exactly the rent those two accounts held.
+fn finish_and_assert_closed(w: &mut World, ix: Instruction, signer: &Keypair) {
+    let rent = w.lamports(w.bet()) + w.lamports(w.vault());
+    assert!(rent > 0, "the bet and vault hold rent before closing");
+    let payer = w.payer.pubkey();
+    let before = w.lamports(payer);
+
+    w.run(ix, signer).expect("terminal transition");
+
+    assert!(!w.exists(w.vault()), "vault closed");
+    assert!(!w.exists(w.bet()), "bet account closed");
+    assert_eq!(w.lamports(payer), before + rent - FEE, "rent returned to the payer");
+}
+
+#[test]
+fn the_creator_pays_no_sol_for_rent() {
+    let Some(mut w) = world() else { return };
+    let before = w.lamports(w.creator.pubkey());
+    w.create();
+    assert_eq!(w.lamports(w.creator.pubkey()), before, "rent and fee came from the payer");
+    assert!(w.state() == BetState::Open);
+}
+
+#[test]
+fn confirm_closes_the_bet() {
+    let Some(mut w) = world() else { return };
+    w.active_at_deadline();
+    let (creator, opponent) = (w.creator.insecure_clone(), w.opponent.insecure_clone());
+    let claim = w.claim_ix(&creator, Outcome::CreatorWins);
+    w.run(claim, &creator).expect("claimed");
+    let ix = w.confirm_ix(&opponent);
+    finish_and_assert_closed(&mut w, ix, &opponent);
+}
+
+#[test]
+fn settling_an_uncontested_claim_closes_the_bet() {
+    let Some(mut w) = world() else { return };
+    w.active_at_deadline();
+    let (creator, stranger) = (w.creator.insecure_clone(), w.stranger.insecure_clone());
+    let claim = w.claim_ix(&creator, Outcome::OpponentWins);
+    w.run(claim, &creator).expect("claimed");
+    w.set_time(DEADLINE + sporim::constants::CLAIM_WINDOW_SECONDS);
+    let ix = w.settle_ix(&stranger);
+    finish_and_assert_closed(&mut w, ix, &stranger);
+    assert_eq!(w.balance(w.opponent.pubkey()), FUNDED + STAKE - 600_000);
+}
+
+#[test]
+fn cancelling_closes_the_bet() {
+    let Some(mut w) = world() else { return };
+    w.create();
+    let creator = w.creator.insecure_clone();
+    let ix = w.cancel_ix();
+    finish_and_assert_closed(&mut w, ix, &creator);
+    assert_eq!(w.balance(creator.pubkey()), FUNDED);
+}
+
+#[test]
+fn expiring_an_unaccepted_bet_closes_it() {
+    let Some(mut w) = world() else { return };
+    w.create();
+    w.set_time(ACCEPT_DEADLINE);
+    let stranger = w.stranger.insecure_clone();
+    let ix = w.expire_ix(&stranger);
+    finish_and_assert_closed(&mut w, ix, &stranger);
+    assert_eq!(w.balance(w.creator.pubkey()), FUNDED);
+}
+
+#[test]
+fn refunding_an_abandoned_bet_closes_it() {
+    let Some(mut w) = world() else { return };
+    w.active_at_deadline();
+    w.set_time(GRACE_ENDS);
+    let stranger = w.stranger.insecure_clone();
+    let ix = w.refund_expired_ix(&stranger);
+    finish_and_assert_closed(&mut w, ix, &stranger);
+}
+
+#[test]
+fn a_dispute_closes_the_bet() {
+    let Some(mut w) = world() else { return };
+    w.active_at_deadline();
+    let (creator, opponent) = (w.creator.insecure_clone(), w.opponent.insecure_clone());
+    let claim = w.claim_ix(&creator, Outcome::CreatorWins);
+    w.run(claim, &creator).expect("claimed");
+    let ix = w.dispute_ix(&opponent);
+    finish_and_assert_closed(&mut w, ix, &opponent);
+}
+
+#[test]
+fn rent_cannot_be_redirected_to_somebody_else() {
+    let Some(mut w) = world() else { return };
+    w.create();
+    let creator = w.creator.insecure_clone();
+    let mut ix = w.cancel_ix();
+    // Swap the rent payer account for the creator's own wallet.
+    let rent_payer = w.payer.pubkey();
+    for meta in ix.accounts.iter_mut().filter(|m| m.pubkey == rent_payer) {
+        meta.pubkey = creator.pubkey();
+    }
+    assert!(w.run(ix, &creator).is_err(), "rent_payer is pinned to the bet");
 }

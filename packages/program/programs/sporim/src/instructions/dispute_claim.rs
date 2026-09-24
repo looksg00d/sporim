@@ -4,7 +4,7 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 use crate::constants::BET_SEED;
 use crate::error::ErrorCode;
 use crate::rules::{require_allowed, Action, RuleInput};
-use crate::settlement::refund_both;
+use crate::settlement::{refund_both, close_vault};
 use crate::state::{Bet, BetState};
 
 /// The side that did not claim says "no". With nobody named to decide — every bet in this
@@ -21,6 +21,7 @@ pub struct DisputeClaim<'info> {
         mut,
         seeds = [BET_SEED, bet.bet_id.as_ref()],
         bump = bet.bump,
+        close = rent_payer,
     )]
     pub bet: Account<'info, Bet>,
 
@@ -43,6 +44,11 @@ pub struct DisputeClaim<'info> {
     /// Owner checked in the handler — same reason as in `refund_expired`.
     #[account(mut)]
     pub opponent_token_account: Account<'info, TokenAccount>,
+
+    /// Receives the rent back as the bet and its vault close.
+    /// CHECK: only ever credited lamports; its address is pinned to the one stored on the bet.
+    #[account(mut, address = bet.rent_payer)]
+    pub rent_payer: UncheckedAccount<'info>,
 
     pub token_program: Program<'info, Token>,
 }
@@ -90,5 +96,14 @@ pub fn handle_dispute_claim(ctx: Context<DisputeClaim>) -> Result<()> {
         opponent_ata,
         stake_creator,
         stake_opponent,
+    )?;
+
+    close_vault(
+        ctx.accounts.bet.bet_id,
+        ctx.accounts.bet.bump,
+        ctx.accounts.token_program.key(),
+        ctx.accounts.vault.to_account_info(),
+        ctx.accounts.bet.to_account_info(),
+        ctx.accounts.rent_payer.to_account_info(),
     )
 }

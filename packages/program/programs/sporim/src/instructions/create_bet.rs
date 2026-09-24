@@ -16,12 +16,16 @@ use crate::state::{Bet, BetState};
 #[derive(Accounts)]
 #[instruction(bet_id: [u8; 16])]
 pub struct CreateBet<'info> {
-    #[account(mut)]
     pub creator: Signer<'info>,
+
+    /// Pays the rent for the bet and its vault, and gets it back when the bet closes. The
+    /// server's keypair in production (plan decision D2), so a person needs USDC, never SOL.
+    #[account(mut)]
+    pub payer: Signer<'info>,
 
     #[account(
         init,
-        payer = creator,
+        payer = payer,
         space = 8 + Bet::INIT_SPACE,
         seeds = [BET_SEED, bet_id.as_ref()],
         bump,
@@ -39,7 +43,7 @@ pub struct CreateBet<'info> {
 
     #[account(
         init,
-        payer = creator,
+        payer = payer,
         associated_token::mint = mint,
         associated_token::authority = bet,
     )]
@@ -88,6 +92,7 @@ pub fn handle_create_bet(
     bet.claim_outcome = None;
     bet.claim_by = None;
     bet.claim_window_ends = 0;
+    bet.rent_payer = ctx.accounts.payer.key();
 
     let cpi_accounts = TransferChecked {
         from: ctx.accounts.creator_token_account.to_account_info(),

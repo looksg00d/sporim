@@ -3,7 +3,7 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use crate::constants::{treasury, BET_SEED};
 use crate::error::ErrorCode;
-use crate::settlement::{calculate_settlement, distribute};
+use crate::settlement::{calculate_settlement, distribute, close_vault};
 use crate::state::{Bet, BetState};
 
 /// Permissionless: once the 48h claim window has passed with nobody confirming or disputing,
@@ -19,6 +19,7 @@ pub struct SettleUncontested<'info> {
         mut,
         seeds = [BET_SEED, bet.bet_id.as_ref()],
         bump = bet.bump,
+        close = rent_payer,
     )]
     pub bet: Account<'info, Bet>,
 
@@ -48,6 +49,11 @@ pub struct SettleUncontested<'info> {
         associated_token::authority = treasury(),
     )]
     pub treasury_token_account: Account<'info, TokenAccount>,
+
+    /// Receives the rent back as the bet and its vault close.
+    /// CHECK: only ever credited lamports; its address is pinned to the one stored on the bet.
+    #[account(mut, address = bet.rent_payer)]
+    pub rent_payer: UncheckedAccount<'info>,
 
     pub token_program: Program<'info, Token>,
 }
@@ -108,5 +114,14 @@ pub fn handle_settle_uncontested(ctx: Context<SettleUncontested>) -> Result<()> 
         opponent_ata,
         treasury_ata,
         settlement,
+    )?;
+
+    close_vault(
+        ctx.accounts.bet.bet_id,
+        ctx.accounts.bet.bump,
+        ctx.accounts.token_program.key(),
+        ctx.accounts.vault.to_account_info(),
+        ctx.accounts.bet.to_account_info(),
+        ctx.accounts.rent_payer.to_account_info(),
     )
 }

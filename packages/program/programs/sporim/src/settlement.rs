@@ -2,7 +2,7 @@ use crate::constants::{BET_SEED, BPS_DENOMINATOR, FEE_BPS};
 use crate::error::ErrorCode;
 use crate::state::Outcome;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{transfer_checked, TransferChecked};
+use anchor_spl::token::{close_account, transfer_checked, CloseAccount, TransferChecked};
 
 /// Mirrors `calculateSettlement` in `packages/domain/src/money/settlement.ts` for the `Bet`
 /// format with no referee (this increment has none — see `constants.rs`). Checked arithmetic
@@ -143,4 +143,27 @@ pub fn refund_both<'info>(
         transfer_checked(cpi_ctx, amount, decimals)?;
     }
     Ok(())
+}
+
+/// Closes the emptied vault and returns its rent to `destination` — the bet's `rent_payer`.
+///
+/// Called last by every terminal instruction. The token program refuses to close an account
+/// with a balance, so this doubles as the invariant: a terminal transition that left so much
+/// as one base unit in the vault fails instead of stranding it.
+pub fn close_vault<'info>(
+    bet_id: [u8; 16],
+    bump: u8,
+    token_program: Pubkey,
+    vault: AccountInfo<'info>,
+    bet: AccountInfo<'info>,
+    destination: AccountInfo<'info>,
+) -> Result<()> {
+    let seeds: &[&[u8]] = &[BET_SEED, &bet_id, &[bump]];
+    let signer_seeds: &[&[&[u8]]] = &[seeds];
+    let cpi_accounts = CloseAccount {
+        account: vault,
+        destination,
+        authority: bet,
+    };
+    close_account(CpiContext::new_with_signer(token_program, cpi_accounts, signer_seeds))
 }

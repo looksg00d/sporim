@@ -222,6 +222,7 @@ impl World {
             program_id: sporim::ID,
             accounts: sporim::accounts::CreateBet {
                 creator: self.creator.pubkey(),
+                payer: self.payer.pubkey(),
                 bet: self.bet(),
                 mint: self.mint,
                 creator_token_account: self.ata(self.creator.pubkey()),
@@ -280,6 +281,7 @@ impl World {
                 creator_token_account: self.ata(self.creator.pubkey()),
                 opponent_token_account: self.ata(self.opponent.pubkey()),
                 treasury_token_account: self.ata(sporim::constants::treasury()),
+                rent_payer: self.payer.pubkey(),
                 token_program: spl_token::ID,
             }
             .to_account_metas(None),
@@ -298,6 +300,7 @@ impl World {
                 vault: self.vault(),
                 creator_token_account: self.ata(self.creator.pubkey()),
                 opponent_token_account: self.ata(self.opponent.pubkey()),
+                rent_payer: self.payer.pubkey(),
                 token_program: spl_token::ID,
             }
             .to_account_metas(None),
@@ -315,6 +318,7 @@ impl World {
                 vault: self.vault(),
                 creator_token_account: self.ata(self.creator.pubkey()),
                 opponent_token_account: self.ata(self.opponent.pubkey()),
+                rent_payer: self.payer.pubkey(),
                 token_program: spl_token::ID,
             }
             .to_account_metas(None),
@@ -322,12 +326,69 @@ impl World {
         }
     }
 
-    /// create → accept by `opponent` → clock at the deadline. Where most stories start.
-    pub fn active_at_deadline(&mut self) {
+    pub fn settle_ix(&self, caller: &Keypair) -> Instruction {
+        Instruction {
+            program_id: sporim::ID,
+            accounts: sporim::accounts::SettleUncontested {
+                caller: caller.pubkey(),
+                bet: self.bet(),
+                mint: self.mint,
+                vault: self.vault(),
+                creator_token_account: self.ata(self.creator.pubkey()),
+                opponent_token_account: self.ata(self.opponent.pubkey()),
+                treasury_token_account: self.ata(sporim::constants::treasury()),
+                rent_payer: self.payer.pubkey(),
+                token_program: spl_token::ID,
+            }
+            .to_account_metas(None),
+            data: sporim::instruction::SettleUncontested {}.data(),
+        }
+    }
+
+    pub fn cancel_ix(&self) -> Instruction {
+        Instruction {
+            program_id: sporim::ID,
+            accounts: sporim::accounts::CancelBet {
+                creator: self.creator.pubkey(),
+                bet: self.bet(),
+                mint: self.mint,
+                vault: self.vault(),
+                creator_token_account: self.ata(self.creator.pubkey()),
+                rent_payer: self.payer.pubkey(),
+                token_program: spl_token::ID,
+            }
+            .to_account_metas(None),
+            data: sporim::instruction::CancelBet {}.data(),
+        }
+    }
+
+    pub fn expire_ix(&self, caller: &Keypair) -> Instruction {
+        Instruction {
+            program_id: sporim::ID,
+            accounts: sporim::accounts::ExpireUnaccepted {
+                caller: caller.pubkey(),
+                bet: self.bet(),
+                mint: self.mint,
+                vault: self.vault(),
+                creator_token_account: self.ata(self.creator.pubkey()),
+                rent_payer: self.payer.pubkey(),
+                token_program: spl_token::ID,
+            }
+            .to_account_metas(None),
+            data: sporim::instruction::ExpireUnaccepted {}.data(),
+        }
+    }
+
+    pub fn create(&mut self) {
         let creator = self.creator.insecure_clone();
-        let opponent = self.opponent.insecure_clone();
         let create = self.create_ix();
         self.run(create, &creator).expect("created");
+    }
+
+    /// create → accept by `opponent` → clock at the deadline. Where most stories start.
+    pub fn active_at_deadline(&mut self) {
+        let opponent = self.opponent.insecure_clone();
+        self.create();
         let accept = self.accept_ix(&opponent);
         self.run(accept, &opponent).expect("accepted");
         self.set_time(DEADLINE);
