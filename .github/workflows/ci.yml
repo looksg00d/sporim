@@ -58,7 +58,7 @@ jobs:
   #
   # Instruction-level tests (LiteSVM) need a built program and come with the next slice.
   program:
-    name: rust · settlement parity
+    name: rust · parity with the domain
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -70,8 +70,9 @@ jobs:
         with:
           workspaces: packages/program
 
+      # Money, constants and transitions — each read from a file the domain generates.
       - name: Parity with the domain
-        run: cargo test --package sporim --test parity
+        run: cargo test --package sporim --test parity --test constants_parity --test transitions_parity
         working-directory: packages/program
 
   # Every contributor here is on Windows; a green Linux run that breaks `pnpm dev`

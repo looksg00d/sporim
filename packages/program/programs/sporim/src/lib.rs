@@ -1,6 +1,7 @@
 pub mod constants;
 pub mod error;
 pub mod instructions;
+pub mod rules;
 pub mod settlement;
 pub mod state;
 
