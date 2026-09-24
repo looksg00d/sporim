@@ -287,6 +287,41 @@ impl World {
         }
     }
 
+    /// Anyone may send it; `caller` only signs.
+    pub fn refund_expired_ix(&self, caller: &Keypair) -> Instruction {
+        Instruction {
+            program_id: sporim::ID,
+            accounts: sporim::accounts::RefundExpired {
+                caller: caller.pubkey(),
+                bet: self.bet(),
+                mint: self.mint,
+                vault: self.vault(),
+                creator_token_account: self.ata(self.creator.pubkey()),
+                opponent_token_account: self.ata(self.opponent.pubkey()),
+                token_program: spl_token::ID,
+            }
+            .to_account_metas(None),
+            data: sporim::instruction::RefundExpired {}.data(),
+        }
+    }
+
+    pub fn dispute_ix(&self, who: &Keypair) -> Instruction {
+        Instruction {
+            program_id: sporim::ID,
+            accounts: sporim::accounts::DisputeClaim {
+                signer: who.pubkey(),
+                bet: self.bet(),
+                mint: self.mint,
+                vault: self.vault(),
+                creator_token_account: self.ata(self.creator.pubkey()),
+                opponent_token_account: self.ata(self.opponent.pubkey()),
+                token_program: spl_token::ID,
+            }
+            .to_account_metas(None),
+            data: sporim::instruction::DisputeClaim {}.data(),
+        }
+    }
+
     /// create → accept by `opponent` → clock at the deadline. Where most stories start.
     pub fn active_at_deadline(&mut self) {
         let creator = self.creator.insecure_clone();

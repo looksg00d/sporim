@@ -106,3 +106,41 @@ pub fn distribute<'info>(
 
     Ok(())
 }
+
+/// Every stake back to whoever put it in, no fee — the domain's refund outcome. Shared by
+/// `refund_expired` and a mutual `dispute_claim`, which differ in when, not in what moves.
+#[allow(clippy::too_many_arguments)]
+pub fn refund_both<'info>(
+    bet_id: [u8; 16],
+    bump: u8,
+    decimals: u8,
+    token_program: Pubkey,
+    mint: AccountInfo<'info>,
+    vault: AccountInfo<'info>,
+    bet: AccountInfo<'info>,
+    creator_token_account: AccountInfo<'info>,
+    opponent_token_account: AccountInfo<'info>,
+    stake_creator: u64,
+    stake_opponent: u64,
+) -> Result<()> {
+    let seeds: &[&[u8]] = &[BET_SEED, &bet_id, &[bump]];
+    let signer_seeds: &[&[&[u8]]] = &[seeds];
+
+    for (amount, to) in [
+        (stake_creator, creator_token_account),
+        (stake_opponent, opponent_token_account),
+    ] {
+        if amount == 0 {
+            continue;
+        }
+        let cpi_accounts = TransferChecked {
+            from: vault.clone(),
+            mint: mint.clone(),
+            to,
+            authority: bet.clone(),
+        };
+        let cpi_ctx = CpiContext::new_with_signer(token_program, cpi_accounts, signer_seeds);
+        transfer_checked(cpi_ctx, amount, decimals)?;
+    }
+    Ok(())
+}

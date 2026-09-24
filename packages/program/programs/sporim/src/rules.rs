@@ -8,7 +8,7 @@ use anchor_lang::prelude::*;
 
 use crate::constants::CLAIM_GRACE_SECONDS;
 use crate::error::ErrorCode;
-use crate::state::BetState;
+use crate::state::{Bet, BetState};
 
 /// Who is asking, relative to this bet. A signer who is neither side is a `Stranger` — which is
 /// who takes an open bet, and who may run any permissionless exit.
@@ -78,6 +78,30 @@ pub fn allowed(input: &RuleInput) -> Vec<Action> {
             }
         }
         BetState::Resolved | BetState::Refunded | BetState::Cancelled => vec![],
+    }
+}
+
+impl RuleInput {
+    /// The rule input for `signer` acting on `bet` at `now` — how every instruction asks.
+    pub fn for_bet(bet: &Bet, signer: Pubkey, now: i64) -> Self {
+        let actor_of = |key: Pubkey| {
+            if key == bet.creator {
+                Actor::Creator
+            } else if Some(key) == bet.opponent {
+                Actor::Opponent
+            } else {
+                Actor::Stranger
+            }
+        };
+        RuleInput {
+            state: bet.state,
+            actor: actor_of(signer),
+            now,
+            accept_deadline: bet.accept_deadline,
+            deadline: bet.deadline,
+            claim_by: bet.claim_by.map(actor_of),
+            claim_window_ends: bet.claim_window_ends,
+        }
     }
 }
 
