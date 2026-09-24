@@ -1,0 +1,300 @@
+{
+  "version": "sporim.transitions.v1",
+  "cases": [
+    {
+      "name": "open, accept window running — creator",
+      "state": "open",
+      "actor": "creator",
+      "now": 1788523199,
+      "acceptDeadline": 1788523200,
+      "deadline": 1788782400,
+      "claimBy": null,
+      "claimWindowEnds": 0,
+      "expected": [
+        "cancel"
+      ],
+      "onChain": true
+    },
+    {
+      "name": "open, accept window running — stranger",
+      "state": "open",
+      "actor": "stranger",
+      "now": 1788523199,
+      "acceptDeadline": 1788523200,
+      "deadline": 1788782400,
+      "claimBy": null,
+      "claimWindowEnds": 0,
+      "expected": [
+        "accept"
+      ],
+      "onChain": true
+    },
+    {
+      "name": "open, accept window closed — creator",
+      "state": "open",
+      "actor": "creator",
+      "now": 1788523200,
+      "acceptDeadline": 1788523200,
+      "deadline": 1788782400,
+      "claimBy": null,
+      "claimWindowEnds": 0,
+      "expected": [
+        "expireUnaccepted"
+      ],
+      "onChain": true
+    },
+    {
+      "name": "open, accept window closed — stranger",
+      "state": "open",
+      "actor": "stranger",
+      "now": 1788523200,
+      "acceptDeadline": 1788523200,
+      "deadline": 1788782400,
+      "claimBy": null,
+      "claimWindowEnds": 0,
+      "expected": [
+        "expireUnaccepted"
+      ],
+      "onChain": true
+    },
+    {
+      "name": "active, before deadline — creator",
+      "state": "active",
+      "actor": "creator",
+      "now": 1788782399,
+      "acceptDeadline": 1788523200,
+      "deadline": 1788782400,
+      "claimBy": null,
+      "claimWindowEnds": 0,
+      "expected": [],
+      "onChain": true
+    },
+    {
+      "name": "active, before deadline — opponent",
+      "state": "active",
+      "actor": "opponent",
+      "now": 1788782399,
+      "acceptDeadline": 1788523200,
+      "deadline": 1788782400,
+      "claimBy": null,
+      "claimWindowEnds": 0,
+      "expected": [],
+      "onChain": true
+    },
+    {
+      "name": "active, before deadline — stranger",
+      "state": "active",
+      "actor": "stranger",
+      "now": 1788782399,
+      "acceptDeadline": 1788523200,
+      "deadline": 1788782400,
+      "claimBy": null,
+      "claimWindowEnds": 0,
+      "expected": [],
+      "onChain": true
+    },
+    {
+      "name": "active, at deadline — creator",
+      "state": "active",
+      "actor": "creator",
+      "now": 1788782400,
+      "acceptDeadline": 1788523200,
+      "deadline": 1788782400,
+      "claimBy": null,
+      "claimWindowEnds": 0,
+      "expected": [
+        "submitClaim"
+      ],
+      "onChain": true
+    },
+    {
+      "name": "active, at deadline — opponent",
+      "state": "active",
+      "actor": "opponent",
+      "now": 1788782400,
+      "acceptDeadline": 1788523200,
+      "deadline": 1788782400,
+      "claimBy": null,
+      "claimWindowEnds": 0,
+      "expected": [
+        "submitClaim"
+      ],
+      "onChain": true
+    },
+    {
+      "name": "active, at deadline — stranger",
+      "state": "active",
+      "actor": "stranger",
+      "now": 1788782400,
+      "acceptDeadline": 1788523200,
+      "deadline": 1788782400,
+      "claimBy": null,
+      "claimWindowEnds": 0,
+      "expected": [],
+      "onChain": true
+    },
+    {
+      "name": "active, last second of grace — creator",
+      "state": "active",
+      "actor": "creator",
+      "now": 1789991999,
+      "acceptDeadline": 1788523200,
+      "deadline": 1788782400,
+      "claimBy": null,
+      "claimWindowEnds": 0,
+      "expected": [
+        "submitClaim"
+      ],
+      "onChain": true
+    },
+    {
+      "name": "active, last second of grace — opponent",
+      "state": "active",
+      "actor": "opponent",
+      "now": 1789991999,
+      "acceptDeadline": 1788523200,
+      "deadline": 1788782400,
+      "claimBy": null,
+      "claimWindowEnds": 0,
+      "expected": [
+        "submitClaim"
+      ],
+      "onChain": true
+    },
+    {
+      "name": "active, last second of grace — stranger",
+      "state": "active",
+      "actor": "stranger",
+      "now": 1789991999,
+      "acceptDeadline": 1788523200,
+      "deadline": 1788782400,
+      "claimBy": null,
+      "claimWindowEnds": 0,
+      "expected": [],
+      "onChain": true
+    },
+    {
+      "name": "active, abandoned — creator",
+      "state": "active",
+      "actor": "creator",
+      "now": 1789992000,
+      "acceptDeadline": 1788523200,
+      "deadline": 1788782400,
+      "claimBy": null,
+      "claimWindowEnds": 0,
+      "expected": [
+        "refundExpired"
+      ],
+      "onChain": true
+    },
+    {
+      "name": "active, abandoned — opponent",
+      "state": "active",
+      "actor": "opponent",
+      "now": 1789992000,
+      "acceptDeadline": 1788523200,
+      "deadline": 1788782400,
+      "claimBy": null,
+      "claimWindowEnds": 0,
+      "expected": [
+        "refundExpired"
+      ],
+      "onChain": true
+    },
+    {
+      "name": "active, abandoned — stranger",
+      "state": "active",
+      "actor": "stranger",
+      "now": 1789992000,
+      "acceptDeadline": 1788523200,
+      "deadline": 1788782400,
+      "claimBy": null,
+      "claimWindowEnds": 0,
+      "expected": [
+        "refundExpired"
+      ],
+      "onChain": true
+    },
+    {
+      "name": "claimed, window open — creator",
+      "state": "claimed",
+      "actor": "creator",
+      "now": 1788955259,
+      "acceptDeadline": 1788523200,
+      "deadline": 1788782400,
+      "claimBy": "creator",
+      "claimWindowEnds": 1788955260,
+      "expected": [],
+      "onChain": true
+    },
+    {
+      "name": "claimed, window open — opponent",
+      "state": "claimed",
+      "actor": "opponent",
+      "now": 1788955259,
+      "acceptDeadline": 1788523200,
+      "deadline": 1788782400,
+      "claimBy": "creator",
+      "claimWindowEnds": 1788955260,
+      "expected": [
+        "confirmClaim",
+        "disputeClaim"
+      ],
+      "onChain": true
+    },
+    {
+      "name": "claimed, window open — stranger",
+      "state": "claimed",
+      "actor": "stranger",
+      "now": 1788955259,
+      "acceptDeadline": 1788523200,
+      "deadline": 1788782400,
+      "claimBy": "creator",
+      "claimWindowEnds": 1788955260,
+      "expected": [],
+      "onChain": true
+    },
+    {
+      "name": "claimed, window closed — creator",
+      "state": "claimed",
+      "actor": "creator",
+      "now": 1788955260,
+      "acceptDeadline": 1788523200,
+      "deadline": 1788782400,
+      "claimBy": "creator",
+      "claimWindowEnds": 1788955260,
+      "expected": [
+        "settleUncontested"
+      ],
+      "onChain": true
+    },
+    {
+      "name": "claimed, window closed — opponent",
+      "state": "claimed",
+      "actor": "opponent",
+      "now": 1788955260,
+      "acceptDeadline": 1788523200,
+      "deadline": 1788782400,
+      "claimBy": "creator",
+      "claimWindowEnds": 1788955260,
+      "expected": [
+        "settleUncontested"
+      ],
+      "onChain": true
+    },
+    {
+      "name": "claimed, window closed — stranger",
+      "state": "claimed",
+      "actor": "stranger",
+      "now": 1788955260,
+      "acceptDeadline": 1788523200,
+      "deadline": 1788782400,
+      "claimBy": "creator",
+      "claimWindowEnds": 1788955260,
+      "expected": [
+        "settleUncontested"
+      ],
+      "onChain": true
+    }
+  ]
+}
