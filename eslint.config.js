@@ -27,7 +27,7 @@ export default [
   // Build-time Node scripts inside packages (e.g. the Codama generator). They run under Node,
   // report to the terminal, and never ship.
   {
-    files: ['packages/*/scripts/**/*.mjs'],
+    files: ['packages/*/scripts/**/*.{mjs,ts}'],
     languageOptions: { globals: { URL: 'readonly', console: 'readonly', process: 'readonly' } },
     rules: { 'no-console': 'off' },
   },
