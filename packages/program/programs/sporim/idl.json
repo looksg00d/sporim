@@ -893,7 +893,8 @@
           }
         },
         {
-          "name": "mint"
+          "name": "mint",
+          "address": "2SmKoxP42D8sj4rpiXwxQ1L6s2PswA7XuaLpVw74u6cc"
         },
         {
           "name": "creator_token_account",

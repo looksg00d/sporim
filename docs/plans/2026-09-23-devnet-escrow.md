@@ -543,6 +543,33 @@ Then one scripted happy path and one `refund_expired` path against devnet; recor
 
 ---
 
+## Carried into D–G from the 2026-09-24 review and collision round
+
+Already fixed in the program: a token donated to the vault locked the bet (critical) — the
+leftover is now swept to the creator before closing; any mint was accepted (high) — pinned to
+`allowed_mint()`. Still open, and owned by the tasks below:
+
+- **`rent_payer` is whatever the creator's transaction named (review, medium).** A creator who
+  pays with a key K, drains it and deploys a program at K makes K executable; crediting rent to
+  an executable account fails, so the bet could never close. Our server never builds such a
+  bet, but `accept_bet` is open to anyone. → D1: the adapter refuses to build _any_ instruction
+  for a bet whose `rent_payer` is not the server key. Before mainnet, pin it in the program.
+- **A closed bet's PDA can be reused (review, medium).** Reconciliation (G3) must compare by
+  `create_tx` signature, never by "the account exists".
+- **ATAs may be missing (review, low).** D1 prepends `createAssociatedTokenIdempotent` for
+  creator, opponent and treasury before every terminal instruction.
+- **Dust goes to the creator (collision #5).** Keeps the account list unchanged, but a creator's
+  payout can exceed the settlement vector by what strangers sent. G3 must allow for it.
+- **One hot key does everything (collision #1).** Before G2 puts a key on Vercel: split `admin`
+  (upgrade authority, cold), `fee-payer` (Vercel) and `faucet` (mint authority via
+  `spl-token authorize`). `rent_payer` is stored per bet — keep the old key until its bets close.
+- **An upgrade changes the rules of open bets (collision #3).** Happened twice this slice
+  (B4 layout, B5 confirm window). Acceptable on devnet; before mainnet add `rules_version` to
+  `Bet` and branch `rules.rs` on it.
+- **A blockhash lives ~1 minute (collision #4).** E1's intent must store the _meaning_ of the
+  move (bet, action, outcome) and rebuild the transaction if the blockhash expired while a person
+  hopped Instagram → Phantom — not the message bytes.
+
 ## Phase D — `DevnetChainAdapter`
 
 Lives in `packages/chain/src/devnet/`. The server holds the fee-payer keypair (env

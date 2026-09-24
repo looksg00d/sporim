@@ -64,7 +64,8 @@ export type CreateBetInstruction<
   TAccountCreator extends string | AccountMeta<string> = string,
   TAccountPayer extends string | AccountMeta<string> = string,
   TAccountBet extends string | AccountMeta<string> = string,
-  TAccountMint extends string | AccountMeta<string> = string,
+  TAccountMint extends string | AccountMeta<string> =
+    '2SmKoxP42D8sj4rpiXwxQ1L6s2PswA7XuaLpVw74u6cc',
   TAccountCreatorTokenAccount extends string | AccountMeta<string> = string,
   TAccountVault extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends string | AccountMeta<string> =
@@ -165,7 +166,7 @@ export type CreateBetAsyncInput<
    */
   payer: TAccountPayer;
   bet?: TAccountBet;
-  mint: TAccountMint;
+  mint?: TAccountMint;
   creatorTokenAccount?: TAccountCreatorTokenAccount;
   vault?: TAccountVault;
   tokenProgram?: TAccountTokenProgram;
@@ -270,6 +271,10 @@ export async function getCreateBetInstructionAsync<
       { betId: getNonNullResolvedInstructionInput('betId', args.betId) },
       { programAddress },
     );
+  }
+  if (!accounts.mint.value) {
+    accounts.mint.value =
+      '2SmKoxP42D8sj4rpiXwxQ1L6s2PswA7XuaLpVw74u6cc' as Address<'2SmKoxP42D8sj4rpiXwxQ1L6s2PswA7XuaLpVw74u6cc'>;
   }
   if (!accounts.creatorTokenAccount.value) {
     accounts.creatorTokenAccount.value = await getProgramDerivedAddress({
@@ -385,7 +390,7 @@ export type CreateBetInput<
    */
   payer: TAccountPayer;
   bet: TAccountBet;
-  mint: TAccountMint;
+  mint?: TAccountMint;
   creatorTokenAccount: TAccountCreatorTokenAccount;
   vault: TAccountVault;
   tokenProgram?: TAccountTokenProgram;
@@ -480,6 +485,10 @@ export function getCreateBetInstruction<
   const args = { ...input };
 
   // Resolve default values.
+  if (!accounts.mint.value) {
+    accounts.mint.value =
+      '2SmKoxP42D8sj4rpiXwxQ1L6s2PswA7XuaLpVw74u6cc' as Address<'2SmKoxP42D8sj4rpiXwxQ1L6s2PswA7XuaLpVw74u6cc'>;
+  }
   if (!accounts.tokenProgram.value) {
     accounts.tokenProgram.value =
       'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
