@@ -19,9 +19,18 @@ export default [
       'tools/**',
       // Local output of the /brag video skill: generated HTML/JS, not project code.
       'brag-output/**',
+      // Codama output, regenerated from the program IDL — not ours to lint.
+      'packages/chain/src/devnet/generated/**',
     ],
   },
   ...base,
+  // Build-time Node scripts inside packages (e.g. the Codama generator). They run under Node,
+  // report to the terminal, and never ship.
+  {
+    files: ['packages/*/scripts/**/*.mjs'],
+    languageOptions: { globals: { URL: 'readonly', console: 'readonly', process: 'readonly' } },
+    rules: { 'no-console': 'off' },
+  },
   // Domain and chain logic must stay framework-free so it can be reused by the Expo app later.
   ...purePackage(['packages/domain/src/**/*.ts', 'packages/chain/src/**/*.ts']),
   // The database layer holds the only credential in the system; a `'use client'` module is
