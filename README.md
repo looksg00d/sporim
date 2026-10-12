@@ -10,25 +10,16 @@
 
 | Путь                                                                                  | Что                                                                                                                             |
 | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `docs/01-reel-analysis.md`                                                            | Разбор рила: хук, флоу экранов, метрики, комменты                                                                               |
 | `docs/02-forfeit-teardown.md`                                                         | Как устроен Forfeit: механика, верификация, деньги, цифры                                                                       |
 | `docs/03-competitors.md`                                                              | Paywake, stickK, Beeminder, FineStreak, Accountablo и др.                                                                       |
 | `docs/04-crypto-prior-art.md`                                                         | Уже существующие крипто-аналоги (10 проектов) и что у них брать                                                                 |
 | `docs/05-product-spec.md`                                                             | **Спека v1 (после пивота):** флоу, резолюция, Anchor-программа, риски, roadmap                                                  |
-| `data/reel_DcuCrIRxSOk.summary.json`                                                  | Метаданные рила + 9 превью-комментов (yt-dlp)                                                                                   |
-| `data/reel_DcuCrIRxSOk.ytdlp.info.json`                                               | Полный дамп yt-dlp                                                                                                              |
-| `data/reel_DcuCrIRxSOk.comments.json`                                                 | **Все 240/242 комментов с лайками и ветками ответов** (138 top-level + 102 reply)                                               |
-| `docs/06-user-pains.md`                                                               | Кластеризация болей / предложений / возражений из комментов, по лайкам                                                          |
 | `docs/07-platform-decision.md`                                                        | **Solana + web-first (Next.js)**, почему не натив, стек, что брать у соседей                                                    |
 | `docs/08-friend-bets-prior-art.md`                                                    | WagerLab, Betcha, MNEEBet, Settld, Stakely, bet2fun, ParkTheBus — модели резолюции, юр-ландшафт                                 |
 | `docs/09-phase0-plan.md`                                                              | **План реализации:** PRD с AC по экранам, монорепо, `ChainAdapter`, дизайн Anchor-программы, 60 задач M0–M5, риски, 5 вопросов  |
 | `docs/11-coming-back.md`                                                              | **Возврат пользователя:** экран `/me`, личность до логина, `.ics` + письма вместо push, кто закрывает таймауты, события воронки |
 | `DESIGN.md`                                                                           | **Дизайн-система** (формат getdesign / Google DESIGN.md) — токены, типографика, компоненты, правила. Читать перед любым UI      |
 | [Design canvas](https://claude.ai/code/artifact/f12d16ad-03f0-45eb-8de9-3b523a29efbc) | 3 направления стиля (A Receipt · **B Acid Arena** · C Trash Talk), лендинг + 2 экрана                                           |
-| `reference/reel_DcuCrIRxSOk.mp4`                                                      | Сам ролик (21.6 с)                                                                                                              |
-| `reference/frames/*.jpg`                                                              | 5 экранов флоу + хук-кадр — референс UI                                                                                         |
-| `tools/fetch_reel.py`                                                                 | yt-dlp + cookies → метаданные и превью-комменты                                                                                 |
-| `tools/fetch_comments.py`                                                             | Пагинация всех комментов через web API + cookies                                                                                |
 | `tools/fetch-fonts.py`                                                                | Скачивает Unbounded / IBM Plex Mono в `apps/web/public/fonts` и генерит `fonts.css`                                             |
 | `packages/domain`                                                                     | Логика без фреймворка: деньги, комиссия, стейт-машина, схемы, копирайт. 214 тестов                                              |
 | `packages/ui`                                                                         | Дизайн-система по `DESIGN.md` — инлайн-стили из токенов, чтобы те же компоненты рендерил satori                                 |
@@ -64,21 +55,15 @@ pnpm --filter @sporim/web test:e2e
 python tools/fetch-fonts.py # перегенерить шрифты
 ```
 
-## Парсинг комментов через куки — рабочий рецепт
+## License
 
-```powershell
-# VPN включён системно; cookies.txt — экспорт с HttpOnly (есть строка sessionid)
-python tools/fetch_comments.py DcuCrIRxSOk --cookies "C:\Users\4\Downloads\cookies (1).txt" --out data
-```
+[Business Source License 1.1](LICENSE) — source-available, **not** open source.
 
-Три грабли, на которые наступили (все обойдены в скрипте):
+- ✅ Read, run locally, fork and modify for learning, review and non-production use.
+- ❌ Any production use (running it as a service, a competing app, a commercial fork) without a separate
+  license from the authors.
+- 🔓 On **2030-10-12** this code converts to Apache 2.0.
 
-1. **Нет `sessionid`** в старом `inst/extracted_links/cookies.txt` → login wall / таймаут. Нужен экспорт
-   с HttpOnly-куками (расширение _Get cookies.txt LOCALLY_); рабочий файл — `Downloads/cookies (1).txt`.
-2. **Python `requests` режется по TLS-отпечатку** (curl → 200, requests → timeout / SSL EOF) →
-   скрипт использует `curl_cffi` с `impersonate="chrome"` (то же, что делает yt-dlp).
-3. **Ветки ответов** отдаются «хвостом» (9 новых); старые лежат в «голове» → пагинация в обе стороны
-   (`min_id` ← `next_min_child_cursor`, `max_id` ← `next_max_child_cursor`).
+Commercial licensing: open an issue or reach out via [github.com/looksg00d](https://github.com/looksg00d).
 
-Дубликаты кук (`.instagram.com` vs `www.instagram.com`) схлопываются в `dedupe_cookies()`.
-Instagram заблокирован на уровне сети — VPN должен быть включён **системно** (не только в браузере).
+© 2026 SPORIM authors. All rights reserved except as granted in [LICENSE](LICENSE).
