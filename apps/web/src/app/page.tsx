@@ -50,55 +50,93 @@ export default async function HomePage() {
           backgroundImage: accentGlow(50, 18),
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: space.md, maxWidth: 620 }}>
-          <span
-            style={{ ...typeStyle('labelCaps'), color: color.accent, textTransform: 'uppercase' }}
-          >
-            {TRUST_COPY.noBackingOut}
-          </span>
-          <h1
-            style={{ margin: 0, ...typeStyle('displayLg'), color: color.ink, textWrap: 'balance' }}
-          >
-            Put money on it.
-          </h1>
-          <p
+        {/*
+         * Two columns on a desktop, one on a phone: the copy and the sample card wrap onto
+         * separate rows below ~800px instead of leaving the right half of a wide screen empty.
+         */}
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: space.xxl,
+            alignItems: 'center',
+            alignContent: 'center',
+            flexGrow: 1,
+            width: '100%',
+            maxWidth: 1200,
+            margin: '0 auto',
+          }}
+        >
+          <div
             style={{
-              margin: 0,
-              ...typeStyle('bodyLg'),
-              color: color.inkSecondary,
-              textWrap: 'pretty',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: space.xl,
+              flexGrow: 1,
+              flexBasis: 420,
+              minWidth: 0,
             }}
           >
-            An argument with a friend ends one of two ways: someone quietly forgets it, or someone
-            pays. Both sides lock USDC in escrow — the winner takes it.
-          </p>
-        </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: space.md, maxWidth: 620 }}>
+              <span
+                style={{
+                  ...typeStyle('labelCaps'),
+                  color: color.accent,
+                  textTransform: 'uppercase',
+                }}
+              >
+                {TRUST_COPY.noBackingOut}
+              </span>
+              <h1
+                style={{
+                  margin: 0,
+                  ...typeStyle('displayLg'),
+                  color: color.ink,
+                  textWrap: 'balance',
+                }}
+              >
+                Put money on it.
+              </h1>
+              <p
+                style={{
+                  margin: 0,
+                  ...typeStyle('bodyLg'),
+                  color: color.inkSecondary,
+                  textWrap: 'pretty',
+                }}
+              >
+                An argument with a friend ends one of two ways: someone quietly forgets it, or
+                someone pays. Both sides lock USDC in escrow — the winner takes it.
+              </p>
+            </div>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: space.sm }}>
-          <PillLink href="/new/terms">Start one</PillLink>
-          <PillLink href="/how-it-works" variant="secondary">
-            How it works
-          </PillLink>
-        </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: space.sm }}>
+              <PillLink href="/new/terms">Start one</PillLink>
+              <PillLink href="/how-it-works" variant="secondary">
+                How it works
+              </PillLink>
+            </div>
 
-        <OpenInPhantom />
+            <OpenInPhantom />
 
-        <div
-          style={{ display: 'flex', flexWrap: 'wrap', gap: space.xxl, alignItems: 'flex-start' }}
-        >
+            <div style={{ maxWidth: 380 }}>
+              <ProofChips />
+            </div>
+          </div>
+
           <div
             style={{
               position: 'relative',
               flexGrow: 1,
               flexBasis: 320,
-              maxWidth: 440,
+              maxWidth: 460,
               paddingBottom: 46,
             }}
           >
             <BetCard
               id="0F2A"
               state="active"
-              terms="Ты не пробежишь 10 км до воскресенья."
+              terms="You won't run 10 km by Sunday."
               sides={[
                 { label: 'You', value: '20.00 USDC', tone: 'mine' },
                 { label: 'Dima', value: '20.00 USDC' },
@@ -109,13 +147,7 @@ export default async function HomePage() {
               {TRUST_COPY.noBackingOut}
             </Stamp>
           </div>
-
-          <div style={{ flexGrow: 1, flexBasis: 260, maxWidth: 380 }}>
-            <ProofChips />
-          </div>
         </div>
-
-        <div style={{ flexGrow: 1 }} />
 
         <p style={{ margin: 0, ...typeStyle('micro'), color: color.inkFaint }}>
           {/* No "Terms" link until there are terms: it pointed at a /legal that never existed. */}
