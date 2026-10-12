@@ -1,320 +1,320 @@
-# 10 · Система доказательств (proof / evidence)
+# 10 · Proof system (proof / evidence)
 
-> Написано 2026-09-03 как ответ на вопрос «что можно честно сделать с пруфами **до** AI-судьи».
-> Входные данные: `docs/05` (форматы и резолюция), `docs/06` (240 реальных комментов — главный вход),
-> `docs/02` (12 методов верификации Forfeit), `docs/09` §2 (архитектура, RLS), домен
-> `packages/domain/src/state/{machine,viewer}.ts` и `money/settlement.ts`.
+> Written 2026-09-03 as an answer to the question "what can we honestly do with proofs **before** an AI referee".
+> Inputs: `docs/05` (formats and resolution), `docs/06` (240 real comments, the main input),
+> `docs/02` (Forfeit's 12 verification methods), `docs/09` §2 (architecture, RLS), the domain
+> `packages/domain/src/state/{machine,viewer}.ts` and `money/settlement.ts`.
 >
-> Терминология: **evidence** = артефакт, приложенный к заявке. **Claim** = `submitClaim` в стейт-машине.
+> Terminology: **evidence** = an artifact attached to a claim. **Claim** = `submitClaim` in the state machine.
 >
-> **Устарело с 2026-09-04:** залога за оспаривание больше нет, `bondRouting` и
-> `calculateDisputeBond` удалены, а молчание судьи возвращает деньги в обеих ветках. Всё, что
-> ниже опирается на «сниженный залог за заявку с доказательствами» (`disputeBondFor`, T6.2,
-> T6.10) и на ветку таймаута в `bondRouting` (§ про Q3), надо перепридумать: экономического
-> рычага «дешевле оспорить» больше нет. Сама идея — требовать доказательства к заявке в свою
-> пользу — не отменена и остаётся сильной. См. `docs/DECISIONS.md`, 2026-09-04.
-> Код и комментарии в коде — английские, как во всём репозитории. Здесь русские заголовки.
+> **Outdated since 2026-09-04:** there is no dispute bond anymore, `bondRouting` and
+> `calculateDisputeBond` are removed, and referee silence returns the money in both branches. Everything
+> below that relies on the "reduced bond for a claim with evidence" (`disputeBondFor`, T6.2,
+> T6.10) and on the timeout branch in `bondRouting` (the Q3 section) has to be rethought: the economic
+> lever "cheaper to dispute" is gone. The idea itself, requiring evidence for a claim in your own favour, is not cancelled
+> and remains strong. See `docs/DECISIONS.md`, 2026-09-04.
+> Code and code comments are English, as everywhere in the repository.
 >
-> **Статус на сегодня:** механизма доказательств нет вообще. `docs/09` §1.3 выносит evidence в 1.1,
-> `docs/09` §2.3 оставляет задел в виде одной колонки `claims.evidence_url`. Этот документ утверждает,
-> что (а) минимальный полезный слой стоит ~2–3 дня и должен войти в Phase 0, и (б) `evidence_url`
-> как одиночная текстовая колонка — ошибка, которую дешевле исправить сейчас, чем мигрировать потом.
+> **Status today:** there is no evidence mechanism at all. `docs/09` §1.3 moves evidence to 1.1,
+> `docs/09` §2.3 leaves a stub in the form of a single column `claims.evidence_url`. This document argues
+> that (a) the minimal useful layer costs ~2–3 days and should go into Phase 0, and (b) `evidence_url`
+> as a single text column is a mistake that is cheaper to fix now than to migrate later.
 
 ---
 
-## 1. Что Phase 0 может честно сделать без AI-судьи
+## 1. What Phase 0 can honestly do without an AI referee
 
-### 1.1 Что вообще происходит сегодня
+### 1.1 What actually happens today
 
-Сегодня заявка — это enum. Одна сторона нажимает «я выиграл», у другой 48 часов, молчание = выплата.
-**Соврать стоит ноль.** Это не гипотеза: в `docs/06` кластер 4 («Читы») ровно об этом — «put your
-breakfast beside your bed and make a photo while still laying in the bed» (105 лайков), «you can also
-just delete the app» (133). Люди приходят с готовым ожиданием, что систему обманут.
+Today a claim is an enum. One side presses "I won", the other has 48 hours, silence = payout.
+**Lying costs nothing.** This is not a hypothesis: in `docs/06` cluster 4 ("Cheats") is exactly about this: "put your
+breakfast beside your bed and make a photo while still laying in the bed" (105 likes), "you can also
+just delete the app" (133). People arrive already expecting the system to be cheated.
 
-Без AI-судьи доказательство **ничего не верифицирует**. Оно делает две другие вещи, и обе полезны:
+Without an AI referee, evidence **verifies nothing**. It does two other things, and both are useful:
 
-1. **Даёт судье-другу на что смотреть.** Персона P3 из `docs/09` §1.4 («Аня») сегодня арбитражит
-   спор из 280 символов текста и двух взаимоисключающих утверждений. Это не решение, это подбрасывание
-   монетки с лицом человека. Один скриншот превращает её работу из «кому я больше верю» в «вот что было».
-2. **Меняет цену лжи.** Соврать словом — бесплатно. Соврать артефактом — надо его изготовить и потом
-   стоять за ним перед человеком, который знает тебя лично и может открыть тот же Strava. Это социальная
-   цена, а не криптографическая, и для продукта «спор с другом» она и есть главная.
+1. **Gives the friend-referee something to look at.** Persona P3 from `docs/09` §1.4 ("Anya") today arbitrates
+   a dispute from 280 characters of text and two mutually exclusive statements. That is not a decision, it is a
+   coin toss with a human face. A single screenshot turns her job from "whom do I believe more" into "here is what happened".
+2. **Changes the price of lying.** Lying with words is free. Lying with an artifact means having to fabricate it and then
+   stand behind it in front of a person who knows you personally and can open the same Strava. That is a social
+   price, not a cryptographic one, and for a "dispute with a friend" product it is the main one.
 
-### 1.2 Минимум, который делает заявку заслуживающей доверия
+### 1.2 The minimum that makes a claim credible
 
-Четыре свойства. Меньше — не работает, больше — Phase 1.1.
+Four properties. Fewer does not work, more is Phase 1.1.
 
-| #   | Свойство      | Что конкретно                                                                                                                                             |
-| --- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | **Attached**  | `submitClaim` несёт payload: обязательная текстовая записка + 0–3 артефакта, а не только `Outcome`                                                        |
-| 2   | **Visible**   | Вторая сторона видит те же байты по тому же адресу **сразу** при открытии окна оспаривания; судья — при `disputed`                                        |
-| 3   | **Frozen**    | В момент submit считается `sha256` каждого артефакта и хэш всего бандла, пишется серверный timestamp. Бандл append-only и после открытия окна не меняется |
-| 4   | **Symmetric** | `disputeClaim` несёт такой же бандл: контр-доказательство. Судья, которая видит одну сторону, — не судья                                                  |
+| #   | Property      | What exactly                                                                                                                                                                                   |
+| --- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Attached**  | `submitClaim` carries a payload: a required text note + 0–3 artifacts, not just an `Outcome`                                                                                                   |
+| 2   | **Visible**   | The other side sees the same bytes at the same address **immediately** when the dispute window opens; the referee, when `disputed`                                                             |
+| 3   | **Frozen**    | At submit time a `sha256` of each artifact and a hash of the whole bundle are computed and a server timestamp is written. The bundle is append-only and does not change after the window opens |
+| 4   | **Symmetric** | `disputeClaim` carries the same kind of bundle: counter-evidence. A referee who sees one side is not a referee                                                                                 |
 
-Свойство 3 — единственное, что здесь по-настоящему техническое, и оно дешевле всего остального вместе
-взятого. Оно закрывает атаку, которую **друг-судья не способен обнаружить в принципе**: подать мутное
-фото, получить спор, тихо заменить файл на лучший и сказать «он с самого начала такой был». Хэш плюс
-время делают эту подмену видимой без единой строчки ML.
+Property 3 is the only genuinely technical one here, and it is cheaper than everything else put
+together. It closes an attack that a **friend-referee cannot detect at all**: submit a blurry
+photo, get a dispute, quietly swap the file for a better one and say "it was like that from the start". A hash plus
+a time make that swap visible without a single line of ML.
 
-### 1.3 Чего это НЕ доказывает — говорим прямо, в том числе в UI
+### 1.3 What this does NOT prove: we say it plainly, in the UI too
 
-Это самый важный подраздел документа. Всё, что ниже, должно быть буквально написано на экране, а не
-только здесь, иначе мы продаём криптографическую уверенность там, где её нет.
+This is the most important subsection of the document. Everything below must be written literally on the screen, not
+only here, otherwise we sell cryptographic certainty where there is none.
 
-- **Не доказывает, что на фото автор заявки.** Ни один пиксель об этом не говорит.
-- **Не доказывает, что фото свежее.** Серверное время фиксирует момент **загрузки**, то есть даёт
-  _верхнюю_ границу возраста файла: «этот файл существовал в таком виде не позже T». Нижней границы нет
-  и быть не может. Фото, снятое в прошлом августе, загруженное сегодня, получит сегодняшний timestamp.
-  Формулировка в UI: **«Загружено 3 сен, 19:04 · файл после этого не менялся»** — и ни слова про «снято».
-- **Не доказывает, что фото не чужое.** Скриншот чужого Strava выглядит идентично своему.
-- **Не доказывает, что произошло описанное в terms.** Фото кроссовок — не пробежка.
-- **Не доказывает, что файл не сгенерирован.** В 2026 это допущение по умолчанию, а не крайний случай.
-- **Хэш не «on-chain пруф»**, пока он не на цепочке. В Phase 0 сеть — mock (`docs/09` §2.8), хэш живёт
-  в Postgres. Говорим «зафиксировано у нас», а не «зафиксировано в блокчейне». Место, где это станет
-  правдой, — Phase 1, `submit_claim(evidence_hash)`.
-- **EXIF ничего не доказывает.** См. §4.2 — здесь я расхожусь с `docs/06`.
+- **Does not prove the person in the photo is the claim's author.** Not one pixel says so.
+- **Does not prove the photo is fresh.** The server time records the moment of **upload**, so it gives an
+  _upper_ bound on the file's age: "this file existed in this form no later than T". There is no lower
+  bound and there cannot be. A photo taken last August and uploaded today gets today's timestamp.
+  The wording in the UI: **"Uploaded Sep 3, 19:04 · the file has not changed since"**, and not a word about "taken".
+- **Does not prove the photo is not someone else's.** A screenshot of someone else's Strava looks identical to your own.
+- **Does not prove that what the terms describe happened.** A photo of sneakers is not a run.
+- **Does not prove the file is not generated.** In 2026 that is the default assumption, not an edge case.
+- **The hash is not an "on-chain proof"** until it is on chain. In Phase 0 the network is a mock (`docs/09` §2.8), and the hash lives
+  in Postgres. We say "recorded by us", not "recorded on the blockchain". The place where this becomes
+  true is Phase 1, `submit_claim(evidence_hash)`.
+- **EXIF proves nothing.** See §4.2, where I disagree with `docs/06`.
 
-Одна фраза, которую стоит закрепить как продуктовое правило: **в Phase 0 доказательство — это не
-верификация, это фиксация.** Мы не проверяем — мы делаем так, чтобы сказанное нельзя было переписать
-задним числом, и показываем это обоим.
-
----
-
-## 2. Типы доказательств: ранжирование
-
-Оси: **стоимость для нас** (код + хранение + юридический риск), **как ломается**, **трение при подаче**.
-Порядок — по убыванию отношения «доверие на потраченный день».
-
-### 2.1 Записка (note) — текст, 0–500 символов
-
-- **Стоимость:** одна колонка, одно поле. Практически ноль.
-- **Как ломается:** врать текстом легко.
-- **Почему всё равно первая:** это единственное, что судья реально читает, и это то, что превращает
-  клик по enum в утверждение, за которое отвечают. «Пробежал, трек в Strava, ссылка ниже» — уже
-  проверяемо, потому что содержит проверяемое обещание. Плюс это единственный тип, у которого нулевая
-  поверхность модерации.
-- **Phase 0:** **да, обязательно** для заявки в свою пользу (см. §5.3).
-
-### 2.2 Ссылка на сторонний профиль/активность (Strava, Duolingo, GitHub, Letterboxd, скрин-тайм-шара)
-
-- **Стоимость:** хранить строку и отрендерить `<a rel="noopener nofollow">`. Никакого oEmbed, никакого
-  скрейпинга, никакого OAuth. Полдня максимум.
-- **Как ломается:** ссылка на чужой профиль; приватный профиль (судья видит 404); активность,
-  залитая в Strava вручную; правка/удаление после того, как судья посмотрел; link rot.
-- **Почему высоко:** это **единственный тип, который в Phase 0 подделать реально дороже, чем скриншот**,
-  потому что данные живут у третьей стороны, у которой нет доли в нашем споре, и судья открывает их сама,
-  живьём. Соотношение «доверие / стоимость разработки» здесь лучшее во всём списке — и это, по-моему,
-  самый недооценённый пункт всей темы пруфов.
-- **Phase 0:** **да.** Валидация: только `https:`, ≤ 2048 символов, никаких `javascript:`/`data:`.
-  Копия рядом с полем: «Судья откроет эту ссылку. Если профиль приватный — она ничего не увидит».
-
-### 2.3 Скриншот
-
-- **Стоимость:** тот же путь загрузки, что и фото (см. ниже) — отдельного кода не требует, требует
-  отдельного **лейбла**, потому что лейбл настраивает ожидания судьи.
-- **Как ломается:** тривиально. Генераторов фейковых скриншотов Strava/банка/скрин-тайма — сотни,
-  и они бесплатные.
-- **Почему всё равно берём:** это тип, который покрывает большинство реальных споров из `docs/05`
-  (шаги, пробежка, «не курил», лимит экранного времени), и подаётся за два тапа. Фейк проверяем
-  соседним способом: друг может открыть то же приложение. Скриншот силён не сам по себе, а в паре
-  со ссылкой (§2.2).
-- **Phase 0:** **да**, как `kind: 'screenshot'` того же аплоада.
-
-### 2.4 Фото с камеры
-
-- **Стоимость:** `<input type="file" accept="image/*" capture="environment">` + нормализация + приватный
-  бакет + TTL + модерация-риск. Это самая дорогая часть Phase 0-слоя, ~1.5 дня из ~3.
-- **Как ломается:** фото экрана; старое фото из галереи (`capture` — подсказка браузеру, а не
-  ограничение: на десктопе игнорируется полностью, на iOS пользователь всё равно доходит до библиотеки);
-  чужое фото из интернета; кластер 4 из `docs/06` целиком.
-- **Phase 0:** **да**, но без единого обещания «live». Не пишем «сделай фото сейчас» — пишем
-  «приложи фото». Разница в том, что первое — ложь, а второе — правда.
-
-### 2.5 Видео
-
-- **Стоимость:** высокая и нелинейная. Загрузка 30-секундного ролика с мобильного 4G падает чаще, чем
-  проходит; нужен ресюмируемый аплоад, транскод или плеер под HEVC/H.265 с iPhone, в 5–10 раз больше
-  байт хранения, и просмотр требует от судьи времени, которого у неё нет.
-- **Как ломается:** ненамного хуже фото. Прирост доверия — маленький, прирост стоимости — большой.
-- **Phase 0:** **нет.** Явно отложить. Вернуться, когда появится хотя бы один спор, который без видео
-  не разрешается.
-
-### 2.6 Свидетель (третий человек подтверждает)
-
-- **Стоимость:** новая роль, новый инвайт-токен, новый роут, новый канал уведомлений, новая ветка в
-  `resolveViewerRole` и в стейт-машине.
-- **Структурное возражение:** **свидетель — это судья.** У нас уже есть механизм третьего доверенного
-  человека, утверждённого обеими сторонами, с таймаутом и fail-closed возвратом. Строить свидетеля —
-  значит строить вторую, более слабую копию судьи (у свидетеля нет полномочий, значит его подтверждение
-  ничего не решает, значит зачем он).
-- **Phase 0:** **нет, и не в 1.1.** Вместо этого — бесплатный ход: дать судье видеть бандл. Мы уже
-  собираемся это сделать, и это закрывает 100% пользы от свидетеля за 0% его стоимости.
-
-### 2.7 Сводная таблица
-
-| Тип                            | Стоимость нам             | Как ломается                    | Трение подачи | Phase 0              |
-| ------------------------------ | ------------------------- | ------------------------------- | ------------- | -------------------- |
-| Записка                        | ~0                        | врут словами                    | минимальное   | ✅ обязательна       |
-| Ссылка                         | 0.5 дня                   | чужой/приватный профиль, правка | низкое        | ✅                   |
-| Скриншот                       | общий аплоад              | тривиально фейкается            | 2 тапа        | ✅                   |
-| Фото                           | ~1.5 дня                  | старое / чужое / фото экрана    | 3 тапа        | ✅ без обещания live |
-| Видео                          | высокая                   | как фото                        | высокое       | ❌ отложить          |
-| Свидетель                      | высокая                   | сговор                          | высокое       | ❌ это судья         |
-| GPS / Health / Screen Time API | очень высокая (`docs/02`) | —                               | —             | ❌ не Phase 0/1.1    |
+One phrase worth fixing as a product rule: **in Phase 0, evidence is not
+verification, it is fixation.** We do not verify; we make sure that what was said cannot be rewritten
+after the fact, and we show that to both sides.
 
 ---
 
-## 3. Кто видит доказательства и когда
+## 2. Evidence types: a ranking
 
-Контекст, который делает вопрос нетривиальным: страница спора достижима **по ссылке без авторизации**
-(`docs/09` §2.3 — публичный доступ через вью `bets_public`, `docs/09` R7 — «link-secret model»).
-То есть текст условий уже виден любому, кому переслали ссылку. Доказательство — строго более
-чувствительная вещь: на фото может быть лицо, квартира, баланс приложения, список приложений в
-скрин-тайме.
+Axes: **cost to us** (code + storage + legal risk), **how it breaks**, **friction to submit**.
+The order is by descending ratio of "trust per day spent".
 
-**Правило: байты доказательств никогда не попадают в `bets_public` и никогда не отдаются по публичному URL.**
+### 2.1 Note: text, 0–500 characters
 
-| Роль (`resolveViewerRole`)              | Что видит                                                                                      | Когда                                 |
-| --------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------- |
-| `creator` / `opponent` — автор заявки   | свой бандл целиком                                                                             | всегда после submit                   |
-| `creator` / `opponent` — вторая сторона | бандл целиком (байты по подписанной ссылке)                                                    | **немедленно** при открытии окна 48 ч |
-| `referee`                               | оба бандла целиком + записки обеих сторон                                                      | только при `state = 'disputed'`       |
-| `beneficiary`                           | как «вторая сторона», если она же opponent-side в Commit                                       | немедленно                            |
-| `observer` (по ссылке)                  | **только метаданные**: сколько артефактов, каких типов, время фиксации, первые 8 символов хэша | всегда                                |
+- **Cost:** one column, one field. Practically zero.
+- **How it breaks:** lying in text is easy.
+- **Why it is still first:** it is the only thing the referee actually reads, and it is what turns
+  a click on an enum into a statement someone answers for. "Ran, track in Strava, link below" is already
+  checkable, because it contains a checkable promise. Also it is the only type with zero
+  moderation surface.
+- **Phase 0:** **yes, required** for a claim in your own favour (see §5.3).
 
-Три обоснования, каждое — продуктовое решение, а не деталь:
+### 2.2 Link to a third-party profile/activity (Strava, Duolingo, GitHub, Letterboxd, screen-time share)
 
-1. **Вторая сторона видит бандл немедленно, до решения об оспаривании.** Иначе мы просим человека
-   заплатить залог $1–25 за право узнать, что он оспаривает. Это гарантированно выталкивает всех в
-   «оспариваю на всякий случай», забивает судью и превращает залог в налог на осторожность.
-2. **Судья видит только при `disputed`.** Она не должна ничего читать в 95% случаев (`docs/09` §1.4).
-   Плюс это минимизирует круг лиц, которым вообще уходят байты.
-3. **Observer видит факт, но не содержимое.** «2 фото · зафиксировано 3 сен 19:04 · a3f19c…» на публичной
-   карточке — это сигнал доверия, который работает в чате и ничего не раскрывает. Он же честно
-   показывает обратное: **«Пруфов не приложено»** — что для второй стороны важнее любого фото.
+- **Cost:** store a string and render `<a rel="noopener nofollow">`. No oEmbed, no
+  scraping, no OAuth. Half a day at most.
+- **How it breaks:** a link to someone else's profile; a private profile (the referee sees a 404); an activity
+  entered into Strava by hand; editing/deleting after the referee has looked; link rot.
+- **Why it ranks high:** it is the **only type that is really more expensive to fake than a screenshot in Phase 0**,
+  because the data lives with a third party that has no stake in our dispute, and the referee opens it herself,
+  live. The ratio of "trust / development cost" here is the best in the whole list, and this is, in my view, the
+  most underrated item in the entire proof topic.
+- **Phase 0:** **yes.** Validation: `https:` only, ≤ 2048 characters, no `javascript:`/`data:`.
+  Copy next to the field: "The referee will open this link. If the profile is private, they won't see anything".
+
+### 2.3 Screenshot
+
+- **Cost:** the same upload path as a photo (see below), it needs no separate code, but it needs
+  a separate **label**, because the label sets the referee's expectations.
+- **How it breaks:** trivially. There are hundreds of fake Strava/bank/screen-time screenshot generators,
+  and they are free.
+- **Why we take it anyway:** it is the type that covers most real disputes from `docs/05`
+  (steps, a run, "didn't smoke", a screen-time limit), and it is submitted in two taps. A fake is checked
+  another way: a friend can open the same app. A screenshot is strong not on its own but paired
+  with a link (§2.2).
+- **Phase 0:** **yes**, as `kind: 'screenshot'` of the same upload.
+
+### 2.4 Camera photo
+
+- **Cost:** `<input type="file" accept="image/*" capture="environment">` + normalization + a private
+  bucket + TTL + moderation risk. This is the most expensive part of the Phase 0 layer, ~1.5 days of ~3.
+- **How it breaks:** a photo of a screen; an old photo from the gallery (`capture` is a hint to the browser, not
+  a restriction: on desktop it is ignored entirely, and on iOS the user still gets to the library);
+  someone else's photo from the internet; all of cluster 4 from `docs/06`.
+- **Phase 0:** **yes**, but without a single "live" promise. We do not write "take a photo now", we write
+  "attach a photo". The difference is that the first is a lie and the second is the truth.
+
+### 2.5 Video
+
+- **Cost:** high and nonlinear. Uploading a 30-second clip from a mobile 4G fails more often than it
+  succeeds; it needs a resumable upload, transcoding or a player for iPhone's HEVC/H.265, 5–10 times more
+  storage bytes, and watching it takes time the referee does not have.
+- **How it breaks:** not much worse than a photo. The gain in trust is small, the gain in cost is large.
+- **Phase 0:** **no.** Defer explicitly. Come back when there is at least one dispute that cannot be resolved
+  without video.
+
+### 2.6 Witness (a third person confirms)
+
+- **Cost:** a new role, a new invite token, a new route, a new notification channel, a new branch in
+  `resolveViewerRole` and in the state machine.
+- **Structural objection:** **a witness is a referee.** We already have a mechanism for a trusted third person
+  approved by both sides, with a timeout and a fail-closed refund. Building a witness
+  means building a second, weaker copy of the referee (a witness has no authority, so their confirmation
+  decides nothing, so why have them).
+- **Phase 0:** **no, and not in 1.1 either.** Instead, a free move: let the referee see the bundle. We are already
+  going to do that, and it captures 100% of the witness's value for 0% of the cost.
+
+### 2.7 Summary table
+
+| Type                           | Cost to us            | How it breaks                            | Submit friction | Phase 0                   |
+| ------------------------------ | --------------------- | ---------------------------------------- | --------------- | ------------------------- |
+| Note                           | ~0                    | lying in words                           | minimal         | ✅ required               |
+| Link                           | 0.5 day               | someone else's/private profile, editing  | low             | ✅                        |
+| Screenshot                     | shared upload         | trivially faked                          | 2 taps          | ✅                        |
+| Photo                          | ~1.5 days             | old / someone else's / photo of a screen | 3 taps          | ✅ without a live promise |
+| Video                          | high                  | like a photo                             | high            | ❌ defer                  |
+| Witness                        | high                  | collusion                                | high            | ❌ that is the referee    |
+| GPS / Health / Screen Time API | very high (`docs/02`) | —                                        | —               | ❌ not Phase 0/1.1        |
 
 ---
 
-## 4. Поверхность злоупотреблений
+## 3. Who sees the evidence and when
 
-### 4.1 Переиспользованное / старое фото (кластер 4 `docs/06`)
+The context that makes the question nontrivial: the dispute page is reachable **by link without authentication**
+(`docs/09` §2.3, public access through the `bets_public` view, `docs/09` R7, the "link-secret model").
+So the text of the terms is already visible to anyone the link was forwarded to. Evidence is a strictly more
+sensitive thing: a photo may contain a face, an apartment, an app balance, a list of apps in
+screen time.
 
-Технически в Phase 0 не решается. Дешёвая митигация — двухслойная:
+**Rule: evidence bytes never get into `bets_public` and are never served at a public URL.**
 
-- **Заморозка (§1.2 п.3)** не даёт улучшить пруф после того, как его оспорили.
-- **Требование свежести переносится в текст спора.** Не мы решаем, что считать свежим, — решают двое
-  друзей при создании: «фото с экраном блокировки, на котором сегодняшняя дата», «фото с сегодняшней
-  газетой», «скрин Strava с датой». Это стоит одного template-чипа на экране S1 и работает лучше любой
-  нашей эвристики, потому что спецификация оказывается там, где стороны о ней договариваются.
-  Прямая параллель с `docs/06` п.68: «пруф "завтрак" плохо спроектирован» — проблема была в
-  формулировке задачи, а не в проверке.
-- **Точный детектор повтора бесплатно:** индекс по `sha256`. Если тот же байт-в-байт файл уже
-  прикладывался к другому спору — показать это судье как флаг. Ловит только самый ленивый чит и ничего
-  больше, но стоит один индекс. **Флагать, не блокировать** — легитимные совпадения возможны, а
-  жёсткий отказ на аплоаде — плохой UX ради редкого случая.
+| Role (`resolveViewerRole`)                 | What they see                                                                                                   | When                                       |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `creator` / `opponent`, the claim's author | their own whole bundle                                                                                          | always after submit                        |
+| `creator` / `opponent`, the other side     | the whole bundle (bytes via a signed link)                                                                      | **immediately** when the 48 h window opens |
+| `referee`                                  | both whole bundles + both sides' notes                                                                          | only when `state = 'disputed'`             |
+| `beneficiary`                              | like "the other side", if they are also the opponent side in Commit                                             | immediately                                |
+| `observer` (by link)                       | **metadata only**: how many artifacts, of which types, the time of fixation, the first 8 characters of the hash | always                                     |
 
-### 4.2 EXIF: здесь я расхожусь с `docs/06`
+Three rationales, each a product decision, not a detail:
 
-`docs/06` §4 предлагает «Freshness: серверное время + **EXIF** + двойное фото». **EXIF-верификация —
-театр безопасности, и её не надо строить ни в Phase 0, ни в 1.1.**
+1. **The other side sees the bundle immediately, before deciding whether to dispute.** Otherwise we ask a person to
+   pay a $1–25 bond for the right to find out what they are disputing. That reliably pushes everyone into
+   "dispute just in case", clogs the referee and turns the bond into a tax on caution.
+2. **The referee sees only when `disputed`.** She should not have to read anything in 95% of cases (`docs/09` §1.4).
+   It also minimizes the circle of people the bytes go to at all.
+3. **The observer sees the fact, not the content.** "2 photos · recorded Sep 3 19:04 · a3f19c…" on the public
+   card is a trust signal that works in a chat and reveals nothing. It also honestly shows the opposite:
+   **"No proof attached"**, which matters more to the other side than any photo.
 
-- EXIF полностью контролируется отправителем: `exiftool -DateTimeOriginal=...` ставит любую дату за
-  секунду. Проверять поле, которое атакующий сам и пишет, — бессмысленно.
-- EXIF почти всегда **уже отсутствует**: любой мессенджер и системный «Поделиться» на iOS его срезают.
-  Значит «нет EXIF» неотличимо от «нормальный пользователь», и правило «нет EXIF → отказ» отвергает
-  честных чаще, чем нечестных.
-- EXIF — это **риск приватности**, а не актив: он несёт GPS. Кластер 8 `docs/06` («imagine selling that
-  training data») — про ровно этот страх.
+---
 
-**Решение: срезать метаданные на приёме и написать об этом.** Одна операция ре-энкода превращает
-поверхность атаки в фичу приватности. Хэш считаем **после** нормализации, иначе показанный отпечаток
-не совпадёт с файлом, который скачает судья.
+## 4. The abuse surface
 
-### 4.3 Чужой скриншот / картинка из интернета
+### 4.1 Reused / old photo (cluster 4 of `docs/06`)
 
-В Phase 0 не решается (reverse image search — это внешний вендор и деньги). Митигация: судья-друг —
-единственный инструмент, который здесь реально работает, потому что он знает контекст. Плюс §4.1
-(точный хэш-матч). Честно записать как принятый остаточный риск.
+Technically not solved in Phase 0. The cheap mitigation has two layers:
 
-### 4.4 Сговор двух сторон против судьи
+- **Freezing (§1.2 item 3)** stops improving the proof after it has been disputed.
+- **The freshness requirement moves into the dispute text.** We do not decide what counts as fresh, the two
+  friends do at creation: "a photo of a lock screen showing today's date", "a photo with today's
+  newspaper", "a Strava screenshot with the date". That costs one template chip on screen S1 and works better than any
+  heuristic of ours, because the specification ends up where the sides agree on it.
+  A direct parallel with `docs/06` item 68: "the 'breakfast' proof is badly designed", the problem was in the
+  wording of the task, not in the verification.
+- **An exact repeat detector for free:** an index on `sha256`. If the same byte-for-byte file was already
+  attached to another dispute, show that to the referee as a flag. It catches only the laziest cheat and nothing
+  more, but costs one index. **Flag, don't block**: legitimate matches are possible, and a
+  hard refusal at upload is bad UX for a rare case.
 
-**Это не проблема, и важно это зафиксировать, чтобы не строить защиту от неё.** Если обе стороны
-согласны — они получают обратно собственные деньги. Нет дома, нет общего банка, нет страхового фонда,
-красть не у кого. Единственное, что даёт сговор, — возможность заплатить нам 3% комиссии.
+### 4.2 EXIF: here I disagree with `docs/06`
 
-Настоящий риск — **сговор одной стороны с судьёй**, и он уже частично закрыт (`docs/05`: судью
-утверждают обе стороны при создании, судья не может быть бенефициаром). Доказательства делают этот риск
-чуть хуже, если бандл приватный: подкупленная судья выносит вердикт против очевидного пруфа, и никто
-этого не видит. Дешёвая митигация — **не строить репутацию, а оставить след**: на разрешённом споре
-показывать «Судья @аня решила X · на руках было 2 пруфа · записка судьи: "…"». Ноль новых таблиц сверх
-`resolutions` (§7), а социальная цена для судьи появляется.
+`docs/06` §4 proposes "Freshness: server time + **EXIF** + a double photo". **EXIF verification is
+security theater, and it should not be built in Phase 0 or in 1.1.**
 
-### 4.5 Судья не приходит — и дыра, которая уже есть в плане
+- EXIF is entirely controlled by the sender: `exiftool -DateTimeOriginal=...` sets any date in
+  a second. Checking a field the attacker writes himself is pointless.
+- EXIF is almost always **already missing**: any messenger and the system "Share" on iOS strip it.
+  So "no EXIF" is indistinguishable from "a normal user", and a "no EXIF → reject" rule rejects
+  honest people more often than dishonest ones.
+- EXIF is a **privacy risk**, not an asset: it carries GPS. Cluster 8 of `docs/06` ("imagine selling that
+  training data") is about exactly this fear.
 
-Таймаут 7 дней → возврат обоим — работает и остаётся (fail-closed, `docs/09` R5). Но добавление
-доказательств вскрывает существующую проблему в `bondRouting` (`packages/domain/src/money/settlement.ts`):
+**Decision: strip metadata on intake and say so.** A single re-encode operation turns the
+attack surface into a privacy feature. We compute the hash **after** normalization, otherwise the fingerprint shown
+will not match the file the referee downloads.
+
+### 4.3 Someone else's screenshot / an image from the internet
+
+Not solved in Phase 0 (reverse image search is an external vendor and money). Mitigation: the friend-referee is
+the only tool that really works here, because she knows the context. Plus §4.1
+(the exact hash match). Record it honestly as an accepted residual risk.
+
+### 4.4 Collusion of the two sides against the referee
+
+**This is not a problem, and it is important to record that, so we do not build a defence against it.** If both sides
+agree, they get their own money back. There is no house, no shared bank, no insurance fund,
+nobody to steal from. The only thing collusion gives is the chance to pay us the 3% fee.
+
+The real risk is **collusion of one side with the referee**, and it is already partly closed (`docs/05`: the referee
+is approved by both sides at creation, the referee cannot be the beneficiary). Evidence makes this risk
+slightly worse if the bundle is private: a bribed referee rules against obvious proof and nobody
+sees it. The cheap mitigation is **not to build a reputation but to leave a trail**: on a resolved dispute
+show "Referee @anya ruled X · 2 proofs were on hand · referee's note: '…'". Zero new tables beyond
+`resolutions` (§7), and a social cost appears for the referee.
+
+### 4.5 The referee doesn't show up, and a hole that is already in the plan
+
+The 7-day timeout → refund to both works and stays (fail-closed, `docs/09` R5). But adding
+evidence exposes an existing problem in `bondRouting` (`packages/domain/src/money/settlement.ts`):
 
 ```ts
 const bondGoesTo: PartySide =
   winner === null || winner === dispute.by ? dispute.by : otherSide(dispute.by);
 ```
 
-При таймауте судьи `outcome = 'refund'` → `winner === null` → **залог возвращается оспорившему**.
-Значит: проигрывающая сторона видит безупречно задокументированную заявку, оспаривает её заведомо
-безнадёжно, знает (или надеется), что судья неактивен, ждёт 7 дней — и превращает проигрыш в возврат
-**с нулевой стоимостью**. Сегодня это малозаметно, потому что заявки нечем подкрепить и «безупречной»
-заявки не существует. Как только пруфы появятся, это станет главным способом не платить.
+On a referee timeout `outcome = 'refund'` → `winner === null` → **the bond is returned to the disputer**.
+So: the losing side sees a flawlessly documented claim, disputes it in an obviously
+hopeless way, knows (or hopes) the referee is inactive, waits 7 days, and turns a loss into a refund
+**at zero cost**. Today this is barely noticeable, because claims have nothing to back them and a "flawless"
+claim does not exist. As soon as proofs appear, this becomes the main way to avoid paying.
 
-**Рекомендация: при таймауте судьи залог уходит второй стороне, а не возвращается оспорившему.**
-Ставки при этом всё равно возвращаются обоим — fail-closed не ломается, деньги не уходят платформе.
-Это одна ветка в `bondRouting` (различать `'refund'` по таймауту судьи и `'draw'`/обычный refund).
+**Recommendation: on a referee timeout the bond goes to the other side, not back to the disputer.**
+The stakes still go back to both: fail-closed is not broken, no money goes to the platform.
+It is one branch in `bondRouting` (distinguish a `'refund'` from a referee timeout from a `'draw'`/ordinary refund).
 
-**Здесь я не уверен и говорю об этом прямо.** Контраргумент реальный: честный человек, оспоривший
-честно, наказан за то, что общий друг оказался неактивным. Альтернативы: (a) делить залог пополам;
-(b) оставить как есть и принять эксплойт; (c) вернуть залог, но пометить спор как «оспорен и не
-доведён» в `resolutions` — репутационная, а не денежная цена. Моя ставка — вариант с переходом залога
-второй стороне, потому что $1–25 против бесплатного отката — это единственная цена, которая вообще
-существует в этой ветке. Выношу как открытый вопрос Q3.
+**I am not sure here and say so plainly.** The counterargument is real: an honest person who disputed
+honestly is punished because the mutual friend turned out to be inactive. Alternatives: (a) split the bond in half;
+(b) leave it as is and accept the exploit; (c) return the bond but mark the dispute as "disputed and not
+carried through" in `resolutions`, a reputational price rather than a monetary one. My bet is on the bond going to the
+other side, because $1–25 against a free rollback is the only price that exists at all
+in this branch. I am raising it as open question Q3.
 
-### 4.6 Вредоносная загрузка (то, о чём обычно забывают)
+### 4.6 Malicious upload (what is usually forgotten)
 
-Как только мы храним чужие изображения и раздаём на них ссылки, мы — хостинг. Это самая серьёзная
-юридическая экспозиция всей фичи, и она возникает в Phase 0, у которого распространение — вирусный рил.
+As soon as we store other people's images and serve links to them, we are a host. This is the most serious
+legal exposure of the whole feature, and it appears in Phase 0, whose distribution is a viral reel.
 
-Дешёвый минимум, без которого фичу нельзя выкатывать:
+The cheap minimum without which the feature must not ship:
 
-- приватный бакет, **ни одного публичного URL**, никакого CDN; чтение только через подписанную ссылку
-  на 60 секунд после проверки роли;
-- только изображения (`jpeg|png|webp|heic`), ≤ 3 штук, ≤ 8 МБ до нормализации, ре-энкод в webp,
-  максимум 2048px по длинной стороне; SVG запрещён (это исполняемый документ);
-- rate limit на загрузки (Upstash уже в плане, T4.3);
-- кнопка «пожаловаться» → строка в outbox + документированный процесс снятия (`docs/qa/evidence-takedown.md`);
-- жёсткий TTL (§6).
+- a private bucket, **not one public URL**, no CDN; reads only through a signed link
+  valid for 60 seconds after a role check;
+- images only (`jpeg|png|webp|heic`), ≤ 3 items, ≤ 8 MB before normalization, re-encode to webp,
+  at most 2048px on the long side; SVG forbidden (it is an executable document);
+- a rate limit on uploads (Upstash is already in the plan, T4.3);
+- a "report" button → a row in the outbox + a documented takedown process (`docs/qa/evidence-takedown.md`);
+- a hard TTL (§6).
 
-Приятное свойство, которое даёт стейт-машина: аплоад достижим только для стороны спора, только в
-состояниях `active` (после дедлайна) и `claimed`, — `allowedActions` уже это гарантирует. Случайный
-прохожий по ссылке физически не имеет действия, к которому можно приложить файл. Эндпоинт загрузки
-должен спрашивать `canPerform(bet, role, 'submitClaim' | 'disputeClaim', now)` **до** приёма байтов,
-а не после.
+A pleasant property the state machine gives us: an upload is reachable only by a party to the dispute, only in
+the states `active` (after the deadline) and `claimed`, and `allowedActions` already guarantees that. A random
+passer-by with the link physically has no action to attach a file to. The upload endpoint
+must ask `canPerform(bet, role, 'submitClaim' | 'disputeClaim', now)` **before** accepting bytes,
+not after.
 
 ---
 
-## 5. Как это связывается со стейт-машиной
+## 5. How this ties into the state machine
 
-Имена действий — из `packages/domain/src/state/machine.ts` (`BET_ACTIONS`).
+Action names are from `packages/domain/src/state/machine.ts` (`BET_ACTIONS`).
 
-### 5.1 Какие переходы получают payload
+### 5.1 Which transitions get a payload
 
-| Действие                                                         | Payload                                    | Обоснование                                                                                                                  |
-| ---------------------------------------------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| `submitClaim`                                                    | **`EvidenceBundle`** (записка + 0–3 items) | основной случай                                                                                                              |
-| `disputeClaim`                                                   | **`EvidenceBundle`** (причина + 0–3 items) | судья без второй стороны — не судья; в `disputes.reason` задел уже есть                                                      |
-| `refereeResolve`                                                 | **`rationale: string`**, без файлов        | судья объясняет, а не доказывает; это публичный лог вердиктов, которого нет у Forfeit (`docs/02` «непрозрачная верификация») |
-| `confirmClaim`                                                   | нет                                        | согласие не нуждается в доказательстве                                                                                       |
-| `settleUncontested`                                              | **нет и не может быть**                    | permissionless: вызывающий не сторона и ничего не держит                                                                     |
-| `refundExpired`, `expireUnaccepted`, `cancel`, `accept`, `share` | нет                                        | денег по итогу никто не выигрывает / нечего доказывать                                                                       |
+| Action                                                           | Payload                                   | Rationale                                                                                                                 |
+| ---------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `submitClaim`                                                    | **`EvidenceBundle`** (note + 0–3 items)   | the main case                                                                                                             |
+| `disputeClaim`                                                   | **`EvidenceBundle`** (reason + 0–3 items) | a referee without the other side is not a referee; `disputes.reason` is already a stub for this                           |
+| `refereeResolve`                                                 | **`rationale: string`**, no files         | the referee explains, not proves; this is a public log of verdicts, which Forfeit lacks (`docs/02` "opaque verification") |
+| `confirmClaim`                                                   | none                                      | agreement needs no proof                                                                                                  |
+| `settleUncontested`                                              | **none, and cannot be**                   | permissionless: the caller is not a party and holds nothing                                                               |
+| `refundExpired`, `expireUnaccepted`, `cancel`, `accept`, `share` | none                                      | nobody wins money in the end / nothing to prove                                                                           |
 
-### 5.2 Доменные типы (что именно меняется)
+### 5.2 Domain types (what exactly changes)
 
 ```ts
 // packages/domain/src/types/evidence.ts  — pure, no node, no DOM (Expo-reuse rule)
@@ -328,22 +328,22 @@ export interface EvidenceRef {
 }
 ```
 
-`Claim` и `Dispute` в `types/bet.ts` получают `readonly evidence: EvidenceRef | null`.
-**Домен держит хэш и счётчики, а не пути в хранилище и не URL** — иначе `packages/domain` начнёт знать
-про Supabase и нарушит правило чистоты из `docs/09` §2.1.
+`Claim` and `Dispute` in `types/bet.ts` get `readonly evidence: EvidenceRef | null`.
+**The domain holds the hash and counters, not storage paths and not URLs**, otherwise `packages/domain` starts knowing
+about Supabase and violates the purity rule from `docs/09` §2.1.
 
-### 5.3 Отсутствие доказательств: блокировать или ослаблять?
+### 5.3 Missing evidence: block or weaken?
 
-**Ослаблять по умолчанию; блокировать только там, где спор сам об этом попросил.** Три причины:
+**Weaken by default; block only where the dispute itself asked for it.** Three reasons:
 
-1. Тотальная блокировка ломает формат **Bet**. «Кто выиграет в FIFA» не имеет артефакта и не нуждается
-   в нём — исход виден обоим.
-2. Тотальная блокировка ломает `settleUncontested`: он permissionless, у вызывающего нет и не может
-   быть пруфа.
-3. Жёсткое требование порождает мусор: люди грузят что угодно, лишь бы пройти гейт. Пустая честная
-   заявка лучше, чем формально заполненная фотография потолка.
+1. A blanket block breaks the **Bet** format. "Who wins at FIFA" has no artifact and does not need one,
+   the outcome is visible to both.
+2. A blanket block breaks `settleUncontested`: it is permissionless, and the caller has no proof and cannot
+   have one.
+3. A hard requirement produces garbage: people upload anything just to pass the gate. An empty honest
+   claim is better than a formally filled-in photo of a ceiling.
 
-Правило, которое я предлагаю, — две чистые функции рядом с `successClaimantSide`:
+The rule I propose is two pure functions next to `successClaimantSide`:
 
 ```ts
 // packages/domain/src/state/evidence-policy.ts
@@ -354,113 +354,112 @@ export function isSelfFavouring(outcome: Outcome, by: PartySide): boolean;
 export function evidenceRequired(bet: Bet, outcome: Outcome, by: PartySide): boolean;
 ```
 
-Следствия, которые мне нравятся:
+Consequences I like:
 
-- **Заявка против себя никогда не требует пруфа.** «Он выиграл» самоочевидно достоверна.
-- **`evidenceRequired` по умолчанию `false` для Bet и `true` для Commit.** Это не вкусовщина, это прямо
-  следует из `successClaimantSide`: в Commit заявить успех может **только creator**, а молчание
-  оплачивает заявителя. Бенефициар — друг или charity, который получил бы деньги «просто так»;
-  charity не оспорит никогда, друг может не заметить. **В Commit исход по умолчанию при невнимании — тот,
-  который выгоден единственному, кто вправе заявлять.** Это единственная конфигурация продукта, где
-  презумпция честности структурно не держится, и именно там пруф должен быть обязательным.
+- **A claim against yourself never requires proof.** "He won" is self-evidently credible.
+- **`evidenceRequired` defaults to `false` for Bet and `true` for Commit.** This is not taste, it follows
+  directly from `successClaimantSide`: in Commit only the **creator** can claim success, and silence
+  pays out the claimant. The beneficiary, a friend or a charity, would receive the money "for nothing";
+  a charity will never dispute, a friend may not notice. **In Commit the default outcome under inattention is the one
+  that benefits the only person entitled to claim.** This is the one product configuration where the
+  presumption of honesty structurally does not hold, and that is exactly where proof should be mandatory.
 
-### 5.4 `allowedActions` НЕ меняется
+### 5.4 `allowedActions` does NOT change
 
-Осознанное решение: `submitClaim` остаётся разрешённым действием, а отсутствие пруфа — это ошибка
-**валидации payload**, а не авторизации актора. Иначе `allowedActions` начнёт отвечать на два разных
-вопроса, а таблица «state × role × time» из T0.8 (~90 кейсов) удвоится по причине, не связанной с тем,
-кто вправе действовать.
+A deliberate decision: `submitClaim` stays an allowed action, and missing proof is a **payload
+validation** error, not an actor authorization one. Otherwise `allowedActions` starts answering two different
+questions, and the "state × role × time" table from T0.8 (~90 cases) doubles for a reason unrelated to
+who is entitled to act.
 
-Гейт живёт в трёх местах, в порядке авторитета:
+The gate lives in three places, in order of authority:
 
-1. `evidenceRequired()` в `packages/domain` — источник истины;
-2. серверный экшен `record-claim.ts` — единственное место, где отказ реален;
-3. UI — кнопка задизейблена с человеческой причиной («Этот спор требует пруф — добавь записку или файл»).
+1. `evidenceRequired()` in `packages/domain` is the source of truth;
+2. the server action `record-claim.ts` is the only place where a refusal is real;
+3. the UI: the button is disabled with a human reason ("This dispute requires proof, add a note or a file").
 
-В Phase 1 то же самое переезжает в программу: `evidence_required: bool` в аккаунте `Bet`,
-`evidence_hash: Option<[u8;32]>` в `submit_claim`/`dispute_claim`, констрейнт
-`evidence_required && self_favouring ⇒ hash.is_some()`. Денег это не касается — `calculateSettlement`
-не меняется, парити-тест T5.11 остаётся в силе.
+In Phase 1 the same thing moves into the program: `evidence_required: bool` in the `Bet` account,
+`evidence_hash: Option<[u8;32]>` in `submit_claim`/`dispute_claim`, the constraint
+`evidence_required && self_favouring ⇒ hash.is_some()`. This does not touch money: `calculateSettlement`
+does not change, the T5.11 parity test remains in force.
 
-### 5.5 «Ослабление» на практике: цена оспаривания зависит от пруфа
+### 5.5 "Weakening" in practice: the cost of disputing depends on the proof
 
-Самая дешёвая форма «слабой заявки» — не оценивать пруф машиной, а **сделать несогласие дешевле, когда
-показывать было нечего**:
+The cheapest form of a "weak claim" is not to have a machine evaluate the proof, but to **make disagreement cheaper when
+there was nothing to show**:
 
-- заявка в свою пользу **без** бандла → залог за оспаривание = 0 (или `MIN_DISPUTE_BOND`);
-- заявка в свою пользу **с** бандлом → залог как сейчас, `calculateDisputeBond`.
+- a claim in your own favour **without** a bundle → dispute bond = 0 (or `MIN_DISPUTE_BOND`);
+- a claim in your own favour **with** a bundle → the bond as now, `calculateDisputeBond`.
 
-Это одна ветка в вычислении залога, ноль ML, и это ровно та асимметрия, которую мы хотим: подкреплённое
-утверждение защищено, голое — нет.
+This is one branch in the bond computation, zero ML, and it is exactly the asymmetry we want: a backed
+statement is protected, a bare one is not.
 
-Известный обход: приложить мусорную картинку, чтобы поднять цену несогласия для другого. Принимаю:
-мусор уходит к судье-другу, а друг, увидевший мусор, решает против. Плюс мусор навсегда остаётся в
-`resolutions`. Считаю размен приемлемым, но помечаю как то, за чем надо смотреть.
+A known workaround: attach a junk image to raise the price of disagreement for the other. I accept it:
+junk goes to the friend-referee, and a friend who sees junk rules against it. Also the junk stays forever in
+`resolutions`. I consider the trade acceptable but flag it as something to watch.
 
 ---
 
-## 6. Хранение и приватность
+## 6. Storage and privacy
 
-### 6.1 Где лежат байты
+### 6.1 Where the bytes live
 
-Supabase Storage, **приватный** бакет `evidence`, путь `bets/<bet_id>/<claim_id>/<evidence_id>.webp`.
-Никаких публичных URL, никакого CDN. Чтение — только через серверный экшен, который делает
-`resolveViewerRole` → проверку по таблице из §3 → подписанную ссылку на 60 секунд. Пересланная ссылка
-протухает раньше, чем доедет.
+Supabase Storage, a **private** bucket `evidence`, path `bets/<bet_id>/<claim_id>/<evidence_id>.webp`.
+No public URLs, no CDN. Reads only through a server action that does
+`resolveViewerRole` → a check against the table in §3 → a signed link for 60 seconds. A forwarded link
+expires before it arrives.
 
-### 6.2 RLS — ровно по модели `docs/09` §2.3
+### 6.2 RLS: exactly per the `docs/09` §2.3 model
 
-- новая таблица `evidence`: RLS включён, политик для `anon`/`authenticated` **нет вообще** (deny-all);
-  все записи и чтения — через серверные экшены с service-role ключом после zod + авторизации в репозитории;
-- в `bets_public` **не добавляется ни одной колонки с содержимым**; публичная карточка получает только
-  агрегаты `evidence_count`, `evidence_kinds`, `evidence_frozen_at`, `evidence_hash_prefix`;
-- ESLint-запрет на импорт `server/db/client.ts` из клиентских компонентов распространяется и на
-  `server/media/*`.
+- a new table `evidence`: RLS enabled, **no** policies for `anon`/`authenticated` at all (deny-all);
+  all writes and reads go through server actions with the service-role key after zod + authorization in the repository;
+- `bets_public` gets **not a single column with content**; the public card gets only the aggregates
+  `evidence_count`, `evidence_kinds`, `evidence_frozen_at`, `evidence_hash_prefix`;
+- the ESLint ban on importing `server/db/client.ts` from client components extends to `server/media/*` too.
 
-### 6.3 Приём файла (нормализация)
+### 6.3 File intake (normalization)
 
-Один проход на входе: ре-энкод в webp, **все метаданные срезаются** (это же чинит EXIF-ориентацию),
-длинная сторона ≤ 2048px. `sha256` считается **после** нормализации, по тем байтам, которые реально
-будут отданы. Отклоняем всё, что не изображение, SVG в том числе.
+One pass at the entrance: re-encode to webp, **all metadata stripped** (this also fixes EXIF orientation),
+long side ≤ 2048px. `sha256` is computed **after** normalization, over the bytes that will actually
+be served. We reject anything that is not an image, SVG included.
 
 ### 6.4 Retention
 
-`docs/06` кластер 8 обещает «фото удаляется после вердикта (TTL 24 ч)». **24 часа — слишком агрессивно.**
-Спор разрешается в 19:00, друг открывает ссылку утром и видит пустоту; при споре судье может
-понадобиться посмотреть повторно.
+`docs/06` cluster 8 promises "the photo is deleted after the verdict (24 h TTL)". **24 hours is too aggressive.**
+A dispute is resolved at 19:00, a friend opens the link in the morning and sees emptiness; in a dispute the referee
+may need to look again.
 
-**Предложение: байты удаляются через 7 дней после перехода спора в терминальное состояние
-(`resolved` / `refunded` / `cancelled`). Строка и хэш остаются навсегда.**
+**Proposal: bytes are deleted 7 days after the dispute enters a terminal state
+(`resolved` / `refunded` / `cancelled`). The row and the hash stay forever.**
 
-Формулировка для onboarding и privacy-страницы, буквально: **«Мы удаляем файл. Мы оставляем отпечаток —
-чтобы можно было доказать, что он не менялся, и чтобы ловить повторно присланные пруфы. Мы не продаём
-и не обучаем на ваших фото»** (кластер 8: «imagine selling that training data»).
+Wording for onboarding and the privacy page, literally: **"We delete the file. We keep the fingerprint,
+so it can be proven the file did not change and so repeated proofs can be caught. We don't sell
+or train on your photos"** (cluster 8: "imagine selling that training data").
 
-Плюс: удаление по требованию пользователя в любой момент (`deleted_at` + ночная задача), с последствием
-«ваша заявка станет заявкой без пруфа» — показать это до подтверждения.
+Plus: deletion on user request at any time (`deleted_at` + a nightly job), with the consequence
+"your claim will become a claim without proof", shown before confirmation.
 
-### 6.5 Логи
+### 6.5 Logs
 
-В скраббер Sentry (T4.10 уже чистит terms/email/адреса) добавить: тексты записок, имена файлов,
-подписанные URL. Записка — свободный пользовательский текст, в ней будет что угодно.
+Add to the Sentry scrubber (T4.10 already cleans terms/email/addresses): note texts, file names,
+signed URLs. A note is free user text, it will contain anything.
 
 ---
 
-## 7. Путь к AI-судье 1.1
+## 7. The path to AI referee 1.1
 
-Задача этого раздела — не построить судью, а сделать так, чтобы через месяц не пришлось мигрировать.
+The goal of this section is not to build the referee but to make sure that a month from now we don't have to migrate.
 
-**7.1 Убрать `claims.evidence_url` из миграции `0006` до того, как она уедет.**
-Одна текстовая колонка не удержит 3 артефакта с типами, хэшами, временем заморозки и (в 1.1)
-per-item вердиктом. Это единственный пункт документа, который дешёв **сегодня** и дорог **потом**:
-M2 ещё не отгружен. Вместо неё — таблица `evidence` (`id`, `bet_id`, `claim_id | dispute_id`, `kind`,
+**7.1 Remove `claims.evidence_url` from migration `0006` before it ships.**
+A single text column will not hold 3 artifacts with types, hashes, a freeze time and (in 1.1)
+a per-item verdict. This is the only item in the document that is cheap **today** and expensive **later**:
+M2 has not shipped yet. Instead, a table `evidence` (`id`, `bet_id`, `claim_id | dispute_id`, `kind`,
 `storage_path | url`, `sha256`, `bytes`, `mime`, `width`, `height`, `frozen_at`, `deleted_at`,
 `retention_policy`).
 
-**7.2 Записывать `retention_policy` на строке с первого дня.** Позже политика поменяется (модели нужен
-файл в момент вердикта), и без этого поля придётся бэкфилить по всей истории с неизвестным согласием.
+**7.2 Record `retention_policy` on the row from day one.** Later the policy will change (the model needs the
+file at the moment of the verdict), and without this field we would have to backfill the whole history with unknown consent.
 
-**7.3 Завести `resolutions` — пустую от AI, полную от людей.**
+**7.3 Create `resolutions`: empty of AI, full of humans.**
 
 ```
 resolutions: bet_id, author_kind ('counterparty'|'referee'|'timeout'|'ai'),
@@ -470,60 +469,60 @@ resolutions: bet_id, author_kind ('counterparty'|'referee'|'timeout'|'ai'),
              created_at
 ```
 
-`confidence` / `model` / `signature` в Phase 0 всегда `null`. Это и есть та самая «подпись вердикта»
-из `docs/05` (Roadmap 1.1) — форма готова, наполнителя пока нет.
+`confidence` / `model` / `signature` are always `null` in Phase 0. This is that same "verdict signature"
+from `docs/05` (Roadmap 1.1): the shape is ready, the filler is not yet.
 
-**7.4 Это же — единственный источник данных для оценки AI-судьи.** Каждый разрешённый спор, где был
-пруф и человек вынес решение, — один размеченный пример: `(terms, evidence, human_outcome, contested)`.
-Без него Phase 1.1 стартует с нулём эвал-данных, и на вопрос «AI-судья лучше молчания или хуже?»
-ответить будет нечем — а это единственный вопрос, который там имеет значение. **Это самый ценный
-и почти бесплатный артефакт всего Phase 0-слоя.**
+**7.4 This is also the only data source for evaluating the AI referee.** Every resolved dispute that had
+proof and a human decision is one labeled example: `(terms, evidence, human_outcome, contested)`.
+Without it Phase 1.1 starts with zero eval data, and the question "is the AI referee better than silence or worse?"
+will have no answer, and it is the only question that matters there. **This is the most valuable
+and almost free artifact of the entire Phase 0 layer.**
 
-**7.5 Нормализация на приёме (§6.3) — часть подготовки к 1.1**, потому что модель должна видеть ровно
-то, что видел человек, иначе размеченные примеры не соответствуют входу.
+**7.5 Normalization at intake (§6.3) is part of the preparation for 1.1**, because the model must see exactly
+what the human saw, otherwise the labeled examples do not match the input.
 
-**7.6 Чего НЕ делать сейчас:** промпта, очереди, вендора модерации, порогов уверенности, скоринга.
-Ничего из этого не влияет на схему, а значит может подождать.
+**7.6 What NOT to do now:** a prompt, a queue, a moderation vendor, confidence thresholds, scoring.
+None of it affects the schema, so it can wait.
 
-**7.7 Инвариант, который нельзя нарушать в 1.1:** AI-судья встаёт **под** человека, а не вместо него —
-апелляция к судье-другу остаётся всегда. Кластер 5 `docs/06` («The camera is failed try again later»,
-«error: invalid grass color», ~65 лайков) — это страх ложного отказа, и он уже сформулирован
-пользователями до того, как мы что-либо построили.
+**7.7 The invariant that must not be violated in 1.1:** the AI referee sits **under** the human, not in place of them,
+and an appeal to the friend-referee always remains. Cluster 5 of `docs/06` ("The camera is failed try again later",
+"error: invalid grass color", ~65 likes) is the fear of a false rejection, and users have already put it into words
+before we built anything.
 
 ---
 
-## 8. Рекомендация и задачи
+## 8. Recommendation and tasks
 
-### 8.1 Что строить в Phase 0 (по убыванию ценности)
+### 8.1 What to build in Phase 0 (by descending value)
 
-1. **Схема `evidence` + `resolutions` + хэш + заморозка.** Необратимо, если сделать неправильно;
-   бесплатно, если сделать сейчас.
-2. **Обязательная записка + до 3 артефактов на `submitClaim`**, приватный бакет, подписанное чтение
-   для трёх ролей.
-3. **Контр-бандл на `disputeClaim` + rationale на `refereeResolve`.**
-4. **`evidenceRequired` (по умолчанию on для Commit) + правило «заявка против себя пруфа не требует».**
-5. **Публичная карточка показывает факт наличия пруфа, а не пруф** — включая честное «Пруфов не приложено».
-6. **`resolutions` пишется на каждом терминальном переходе** — датасет для 1.1.
+1. **The `evidence` + `resolutions` schema + hash + freezing.** Irreversible if done wrong;
+   free if done now.
+2. **A required note + up to 3 artifacts on `submitClaim`**, a private bucket, signed reads
+   for three roles.
+3. **A counter-bundle on `disputeClaim` + a rationale on `refereeResolve`.**
+4. **`evidenceRequired` (on by default for Commit) + the rule "a claim against yourself needs no proof".**
+5. **The public card shows the fact that proof exists, not the proof**, including the honest "No proof attached".
+6. **`resolutions` is written on every terminal transition**: the dataset for 1.1.
 
-### 8.2 Что отложить
+### 8.2 What to defer
 
-Видео · роль свидетеля · любые EXIF/GPS-проверки · интеграции со Strava/Health/Screen Time API ·
-reverse image search · любая машинная оценка содержимого · модерация контента вендором.
+Video · the witness role · any EXIF/GPS checks · integrations with Strava/Health/Screen Time API ·
+reverse image search · any machine evaluation of content · content moderation by a vendor.
 
-### 8.3 Самое дешёвое изменение, которое сильнее всего повышает доверие
+### 8.3 The cheapest change that raises trust the most
 
-**Обязательная текстовая записка на каждой заявке в свою пользу, зафиксированная серверным временем и
-показанная второй стороне дословно.**
+**A required text note on every claim in your own favour, recorded with server time and
+shown to the other side verbatim.**
 
-Ноль хранения файлов, ноль поверхности модерации, ноль юридического риска, одна колонка и одно поле в
-UI — и «я выиграл» превращается в утверждение, за которое человек отвечает перед тем, кто его знает.
-Это примерно 5% стоимости всего слоя доказательств и, на мой взгляд, около половины его эффекта.
-Помещается внутрь уже запланированной T3.8.
+Zero file storage, zero moderation surface, zero legal risk, one column and one field in the
+UI, and "I won" becomes a statement a person answers for to someone who knows them.
+That is roughly 5% of the cost of the whole evidence layer and, in my view, about half of its effect.
+It fits inside the already planned T3.8.
 
-### 8.4 Задачи — M6 · Evidence (2–3 дня)
+### 8.4 Tasks: M6 · Evidence (2–3 days)
 
-Формат и правила те же, что в `docs/09` §3: задача ≤ 1 дня, test note обязателен.
-Ни одна из этих задач не помечена `[REEL]` — рил снимается на create/accept-флоу, а не на резолюции.
+The format and rules are the same as in `docs/09` §3: a task ≤ 1 day, a test note is mandatory.
+None of these tasks is marked `[REEL]`: the reel is shot on the create/accept flow, not on resolution.
 
 | id        | Task                                                                                                                                                                                                           | Deps              | Test note                                                                                                                                                                                   |
 | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -543,40 +542,40 @@ UI — и «я выиграл» превращается в утверждени
 | **T6.14** | Sentry scrubber extended: evidence notes, filenames, signed URLs.                                                                                                                                              | T4.10             | A fixture containing a note and a signed URL is fully redacted                                                                                                                              |
 | **T6.15** | _(Phase 1, design only)_ Program: `evidence_required: bool` on `Bet`; `evidence_hash: Option<[u8;32]>` on `submit_claim` / `dispute_claim`; constraint `evidence_required && self_favouring ⇒ hash.is_some()`. | T5.3 (design)     | Constraint test lands in T5.5; **T5.11 settlement parity is unaffected — evidence never touches money** (unless Q3 is adopted)                                                              |
 
-### 8.5 Правки к существующим задачам
+### 8.5 Edits to existing tasks
 
-| Задача | Правка                                                                                                            |
-| ------ | ----------------------------------------------------------------------------------------------------------------- |
-| T2.1   | Убрать `claims.evidence_url` из `0006`; согласовать с `0014` (T6.5)                                               |
-| T3.8   | Claim/confirm на `/b/[id]` получает поле записки — минимальная версия §8.3 даже если T6.6+ не успевают            |
-| T4.10  | Скраббер расширяется (T6.14)                                                                                      |
-| T0.6   | Меняется **только** если принят Q3 (ветка таймаута судьи в `bondRouting`) — тогда таблица T5.11 растёт на 4 кейса |
+| Task  | Edit                                                                                                                   |
+| ----- | ---------------------------------------------------------------------------------------------------------------------- |
+| T2.1  | Remove `claims.evidence_url` from `0006`; align with `0014` (T6.5)                                                     |
+| T3.8  | Claim/confirm on `/b/[id]` gets a note field: the minimal version of §8.3 even if T6.6+ don't make it                  |
+| T4.10 | The scrubber is extended (T6.14)                                                                                       |
+| T0.6  | Changes **only** if Q3 is adopted (the referee timeout branch in `bondRouting`), then the T5.11 table grows by 4 cases |
 
-### 8.6 Открытые вопросы владельцу продукта
+### 8.6 Open questions for the product owner
 
-1. **Q1 · Обязательная записка для всех заявок в свою пользу или только для Commit?**
-   Рекомендую **для всех** — стоимость нулевая, а исключение придётся объяснять в UI.
-2. **Q2 · Нулевой залог за оспаривание голой заявки (§5.5) или всегда `MIN_DISPUTE_BOND` = $1?**
-   Рекомендую **$1 всегда**: ноль открывает спам-оспаривания, а доллар — уже фильтр.
-   Здесь не уверен: $1 против «бесплатно сказать нет, когда тебе ничего не показали» — реальный размен.
-3. **Q3 · Куда идёт залог при таймауте судьи (§4.5)?** (A) второй стороне — закрывает бесплатный откат;
-   (B) пополам; (C) как сейчас, обратно оспорившему. Рекомендую **A**, с явным признанием, что честный
-   оспоривший при неактивном судье платит за чужое бездействие.
-4. **Q4 · Retention 7 дней после терминала или 24 часа, как обещано в `docs/06`?**
-   Рекомендую **7 дней** + прямую формулировку «файл удаляем, отпечаток оставляем».
-5. **Q5 · Входит ли M6 в Phase 0 до рила или сразу после?** Рекомендую **после рила, до Phase 1**:
-   на рил снимают create/accept, а резолюция в кадр не попадает. Исключение — §8.3 (записка),
-   которую стоит вкатить сразу в T3.8.
+1. **Q1 · A required note for all claims in your own favour, or only for Commit?**
+   I recommend **for all**: the cost is zero, and an exception would have to be explained in the UI.
+2. **Q2 · A zero dispute bond for a bare claim (§5.5) or always `MIN_DISPUTE_BOND` = $1?**
+   I recommend **always $1**: zero opens spam disputes, and a dollar is already a filter.
+   I am unsure here: $1 against "free to say no when you were shown nothing" is a real trade-off.
+3. **Q3 · Where does the bond go on a referee timeout (§4.5)?** (A) to the other side, which closes the free rollback;
+   (B) split in half; (C) as now, back to the disputer. I recommend **A**, with an explicit admission that an honest
+   disputer with an inactive referee pays for someone else's inaction.
+4. **Q4 · Retention of 7 days after terminal or 24 hours, as promised in `docs/06`?**
+   I recommend **7 days** + the direct wording "we delete the file, we keep the fingerprint".
+5. **Q5 · Does M6 go into Phase 0 before the reel or right after?** I recommend **after the reel, before Phase 1**:
+   the reel shoots create/accept, and resolution does not make it into the frame. The exception is §8.3 (the note),
+   which is worth rolling out right away in T3.8.
 
 ---
 
-## 9. Связь с болями из `docs/06`
+## 9. Link to the pains from `docs/06`
 
-| Кластер `docs/06`                                           | Что здесь на него отвечает                                                                      |
-| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| **4 · Читы («фото из кровати», «удалю апп»)**               | Заморозка бандла (§1.2), требование свежести в тексте спора (§4.1), точный хэш-детектор повтора |
-| **5 · Edge cases («камера не сработала», ложный отказ AI)** | Пруф ослабляет, а не блокирует (§5.3); человек-судья остаётся всегда (§7.7)                     |
-| **7 · Edge cases / батарея**                                | Таймауты не трогаем; отсутствие пруфа не сжигает деньги                                         |
-| **8 · Privacy («продадут данные для обучения»)**            | Приватный бакет, срезка метаданных, TTL 7 дней, on-chain только хэш (§6)                        |
-| **1 · «Куда идут деньги»**                                  | `resolutions` как публичный лог вердиктов — то, чего нет у Forfeit (`docs/02`)                  |
-| **10 · Репутационные последствия**                          | Решение судьи видно на разрешённом споре (§4.4) — репутация без системы репутации               |
+| `docs/06` cluster                                                 | What here answers it                                                                                      |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **4 · Cheats ("photo from bed", "I'll delete the app")**          | Bundle freezing (§1.2), a freshness requirement in the dispute text (§4.1), an exact-hash repeat detector |
+| **5 · Edge cases ("the camera didn't work", false AI rejection)** | Proof weakens rather than blocks (§5.3); the human referee always remains (§7.7)                          |
+| **7 · Edge cases / battery**                                      | We don't touch timeouts; missing proof doesn't burn money                                                 |
+| **8 · Privacy ("they'll sell the data for training")**            | Private bucket, metadata stripping, 7-day TTL, only the hash on chain (§6)                                |
+| **1 · "Where does the money go"**                                 | `resolutions` as a public verdict log: something Forfeit doesn't have (`docs/02`)                         |
+| **10 · Reputational consequences**                                | The referee's decision is visible on a resolved dispute (§4.4): reputation without a reputation system    |

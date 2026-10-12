@@ -10,7 +10,7 @@ import { expect, test, type Page } from '@playwright/test';
  * button in dev, and a substring match finds both.
  */
 
-const TERMS = 'Ты не пробежишь 10 км до воскресенья.';
+const TERMS = "You won't run 10 km by Sunday.";
 
 const next = (page: Page) => page.getByRole('button', { name: 'Next', exact: true });
 
@@ -237,7 +237,7 @@ test.describe('S5 — review and signing', () => {
   test('a typed name signs it too — drawing is not the only way in', async ({ page }) => {
     await reachReview(page);
     await page.getByRole('button', { name: 'Type your name instead' }).click();
-    await page.getByLabel('Type your name to sign').fill('Дима');
+    await page.getByLabel('Type your name to sign').fill('Dima');
     await expect(page.getByTestId('commit')).toBeEnabled();
   });
 

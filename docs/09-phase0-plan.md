@@ -55,11 +55,11 @@ Friends bet in a chat all the time ("already doing it on group chat" — `docs/0
 
 ### 1.4 Personas
 
-**P1 — Creator ("Максим", 22, has $30 in a Phantom wallet or nothing at all).** Sees the reel, taps the bio link on an iPhone in Safari. Wants to make one bet against a friend in under a minute and drop the link into a group chat. Failure mode: any wallet/seed-phrase screen kills him. Success feeling: "Locked in." + a card that looks good in the chat.
+**P1 — Creator ("Max", 22, has $30 in a Phantom wallet or nothing at all).** Sees the reel, taps the bio link on an iPhone in Safari. Wants to make one bet against a friend in under a minute and drop the link into a group chat. Failure mode: any wallet/seed-phrase screen kills him. Success feeling: "Locked in." + a card that looks good in the chat.
 
-**P2 — Opponent ("Даня", 24, zero crypto).** Receives a link in Telegram. Sees a card that already contains everything: terms, stake, deadline, who decides. Wants to tap Accept and go back to the chat. Failure modes: signup wall, "install Phantom", "buy USDC", ambiguous terms. Success feeling: "I'm in, he's cooked."
+**P2 — Opponent ("Dan", 24, zero crypto).** Receives a link in Telegram. Sees a card that already contains everything: terms, stake, deadline, who decides. Wants to tap Accept and go back to the chat. Failure modes: signup wall, "install Phantom", "buy USDC", ambiguous terms. Success feeling: "I'm in, he's cooked."
 
-**P3 — Referee ("Аня", the mutual friend).** Named at creation, does nothing 95% of the time. Only appears when the two disagree. Wants a one-screen "who won?" with the terms and both claims side by side, and to not be liable for anything. Failure mode: she never opens the link → the money must still come back (fail-closed, `docs/08` ParkTheBus).
+**P3 — Referee ("Anya", the mutual friend).** Named at creation, does nothing 95% of the time. Only appears when the two disagree. Wants a one-screen "who won?" with the terms and both claims side by side, and to not be liable for anything. Failure mode: she never opens the link → the money must still come back (fail-closed, `docs/08` ParkTheBus).
 
 ### 1.5 Product rules locked for Phase 0 (from `docs/05`)
 
@@ -126,7 +126,7 @@ Screen IDs map 1:1 to routes (§2.2). Every AC below is a Playwright or vitest a
 
 #### S5 — "Sign → Locked in" `/new/review` → `/b/[id]/share`
 
-- [ ] AC1: One sentence from `renderContractSentence(draft)`, e.g. _"I bet **Даня** $20 that he won't run 10 km by **Sun 23:59**. **Аня** decides if we disagree. Winner takes **$38.80_* after a 3% fee."*
+- [ ] AC1: One sentence from `renderContractSentence(draft)`, e.g. _"I bet **Dan** $20 that he won't run 10 km by **Sun 23:59**. **Anya** decides if we disagree. Winner takes **$38.80_* after a 3% fee."*
 - [ ] AC2: Breakdown row: Your stake / Their stake / Pot / Fee / Winner receives — all from `calculateSettlement`.
 - [ ] AC3: Signing ritual: full-width press-and-hold ("Hold to lock in", 800 ms).
 - [ ] AC4: Not authenticated → Privy modal → embedded wallet created silently → flow **resumes on the same step** with the draft intact.

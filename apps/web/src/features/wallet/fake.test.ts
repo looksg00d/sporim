@@ -4,7 +4,7 @@ import { createFakeWallet, generateShortCode } from './fake';
 import { WALLET_ERROR_COPY, WalletError, isWalletErrorCode, toWalletError } from './port';
 
 const DRAFT: SubmittableDraft = {
-  terms: 'Ты не пробежишь 10 км до воскресенья.',
+  terms: "You won't run 10 km by Sunday.",
   format: 'bet',
   stake: usdc(20),
   deadlineSeconds: 1_788_000_000,

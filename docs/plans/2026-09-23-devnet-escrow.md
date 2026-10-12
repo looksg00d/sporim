@@ -38,7 +38,7 @@ Everything in Phase A and B is needed whatever the answers are.
 ## How to run things
 
 - **Domain / web tests (Windows shell):** `pnpm check` from the repo root. Integration tests only
-  run with a local DB: see `STATUS.md` → "База для тестов".
+  run with a local DB: see `STATUS.md` → "The test database is local, not the live one".
 - **Program tests (WSL only — Anchor does not build on Windows):**
   ```bash
   wsl -e bash -lc 'cd /mnt/c/Users/4/Desktop/base/moneydeal/packages/program && CARGO_TARGET_DIR=$HOME/dev/.sporim-target cargo test'

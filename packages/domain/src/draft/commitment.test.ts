@@ -5,7 +5,7 @@ import { COMMITMENT_VERSION, commitmentCanonicalString } from './commitment';
 import type { SubmittableDraft } from './reducer';
 
 const DRAFT: SubmittableDraft = {
-  terms: 'Ты не пробежишь 10 км до воскресенья.',
+  terms: "You won't run 10 km by Sunday.",
   format: 'bet',
   stake: usdc(20),
   deadlineSeconds: 1_788_000_000,
@@ -39,14 +39,14 @@ describe('commitmentCanonicalString', () => {
   });
 
   it.each([
-    ['terms', { terms: 'Ты не пробежишь 11 км до воскресенья.' }],
+    ['terms', { terms: "You won't run 11 km by Sunday." }],
     ['stake', { stake: usdc(21) }],
     ['deadline', { deadlineSeconds: DRAFT.deadlineSeconds + 1 }],
     ['format', { format: 'commit' as const }],
     ['decision mode', { decisionMode: 'referee' as const }],
     ['referee', { refereeRef: 'anya' }],
     ['fee', { feeBps: 200 }],
-    ['signature', { signature: typedSignature('Дима') }],
+    ['signature', { signature: typedSignature('Dima') }],
   ])('changes when the %s changes', (_label, patch) => {
     expect(commitmentCanonicalString({ ...DRAFT, ...patch })).not.toBe(
       commitmentCanonicalString(DRAFT),

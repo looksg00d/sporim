@@ -1,188 +1,188 @@
-# 05 · Спека продукта (v1, после пивота 2026-09-02)
+# 05 · Product spec (v1, after the 2026-09-02 pivot)
 
-> **Пивот:** не будильник/привычки, а **споры между друзьями с деньгами в эскроу на Solana**.
-> Будильник и привычки — один из шаблонов спора. Решения приняты: Solana · обязательства-first ·
-> взаимное подтверждение + судья-друг · web-first · 1v1 в MVP. История до пивота — в `01`–`04`, `06`, `07`.
+> **Pivot:** not an alarm clock/habits, but **disputes between friends with money in escrow on Solana**.
+> The alarm clock and habits are one dispute template. Decisions made: Solana · commitments first ·
+> mutual confirmation + a friend as referee · web-first · 1v1 in the MVP. History before the pivot is in `01`–`04`, `06`, `07`.
 
 ## One-liner
 
-**Поспорили в чате → оба положили USDC в эскроу → выигравший забрал банк. Никакого «ты мне должен».**
+**You argue in the chat → both lock USDC in escrow → the winner claims the pot. No more "you owe me".**
 
-## Почему это работает (и почему ниша пустая)
+## Why this works (and why the niche is empty)
 
-| Игрок                              | Деньги?               | О чём угодно?                  | Итог                                                      |
-| ---------------------------------- | --------------------- | ------------------------------ | --------------------------------------------------------- |
-| WagerLab, Betcha                   | ❌ (юниты / скорборд) | ✅                             | легально везде, но «должен» остаётся на словах            |
-| BettorEdge, BetOpenly              | ✅                    | ❌ только спорт                | лицензии по штатам, нет «спора с другом о чём угодно»     |
-| MNEEBet, Settld, Stakely, bet2fun… | ✅ (крипто)           | ✅                             | всё на devnet/хакатонах, ни у кого нет чат-first продукта |
-| **Мы**                             | ✅ USDC-эскроу        | ✅ (обязательства → потом всё) | ссылка в чат + Solana + 10 секунд до принятия             |
+| Player                             | Money?                  | About anything?                    | Outcome                                                            |
+| ---------------------------------- | ----------------------- | ---------------------------------- | ------------------------------------------------------------------ |
+| WagerLab, Betcha                   | ❌ (units / scoreboard) | ✅                                 | legal everywhere, but the "owed" stays a verbal promise            |
+| BettorEdge, BetOpenly              | ✅                      | ❌ sports only                     | state-by-state licenses, no "dispute with a friend about anything" |
+| MNEEBet, Settld, Stakely, bet2fun… | ✅ (crypto)             | ✅                                 | all on devnet/hackathons, nobody has a chat-first product          |
+| **Us**                             | ✅ USDC escrow          | ✅ (commitments → then everything) | a link in the chat + Solana + 10 seconds to accept                 |
 
-Комменты к рилу (`06`): «make it so your friends can bet against you, winner gets the money» — 8.4k лайков; «already doing it on group chat»; «who gets the money?» — 11.8k. Это и есть ТЗ.
+Comments on the reel (`06`): "make it so your friends can bet against you, winner gets the money" (8.4k likes); "already doing it on group chat"; "who gets the money?" (11.8k). That is the brief.
 
-## MVP-флоу
+## MVP flow
 
-**Создатель (5 экранов — формат рила сохраняется):**
+**Creator (5 screens, the reel format is preserved):**
 
-1. **What's the bet?** — текст («Ты не пробежишь 10 км до воскресенья» / «Я встану в 7 всю неделю»). Позже — голосом (Betcha-паттерн).
-2. **Stake** — 5 / 10 / 25 / custom USDC. Подпись: «Both of you put this in escrow. Winner takes 2×.»
-3. **Deadline** — дата/время.
-4. **Who decides?** — «Both of us confirm» (по умолчанию) или «Referee: @friend» (третий, должен принять роль).
-5. **Sign → Locked in** — tx на Solana, ссылка с превью-карточкой → «Share to chat».
+1. **What's the bet?** Text ("You won't run 10 km by Sunday" / "I'll get up at 7 all week"). Later, by voice (Betcha pattern).
+2. **Stake**: 5 / 10 / 25 / custom USDC. Caption: "Both of you put this in escrow. Winner takes 2×."
+3. **Deadline**: date/time.
+4. **Who decides?** "Both of us confirm" (default) or "Referee: @friend" (a third person, who must accept the role).
+5. **Sign → Locked in**: a Solana tx, a link with a preview card → "Share to chat".
 
-**Оппонент:** открывает ссылку → видит условия/ставку/судью → вход (email / Apple / Google через Privy → кошелёк создан) → пополнение USDC → **Accept** → эскроу держит 2× ставки. Всё в браузере, без установки.
+**Opponent:** opens the link → sees the terms/stake/referee → signs in (email / Apple / Google via Privy → wallet created) → tops up USDC → **Accept** → escrow holds 2× the stake. All in the browser, no install.
 
-**Резолюция после дедлайна:**
+**Resolution after the deadline:**
 
-- Оба нажали одного победителя → выплата **в той же транзакции** (MNEEBet-паттерн).
-- Разошлись или один молчит 48 ч → судья решает (creator / opponent / draw).
-- Судьи нет или он молчит 7 дней → **refund обоим** (fail-closed, ParkTheBus-паттерн). Деньги никогда не «зависают» и никогда не уходят платформе.
-- Fee **3 %** с банка при выплате (комьюнити называло «10 % деву» как приемлемый максимум; BetOpenly берёт 1 %).
+- Both pick the same winner → payout **in the same transaction** (MNEEBet pattern).
+- They disagree or one is silent for 48 h → the referee decides (creator / opponent / draw).
+- No referee, or the referee is silent for 7 days → **refund to both** (fail-closed, ParkTheBus pattern). Money never gets stuck and never goes to the platform.
+- Fee **3%** of the pot at payout (the community named "10% to the dev" as an acceptable maximum; BetOpenly takes 1%).
 
-## Шаблоны споров (MVP → позже)
+## Dispute templates (MVP → later)
 
-| Фаза | Тип                                 | Кто решает                                           | Пример                                                        |
-| ---- | ----------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------- |
-| MVP  | **Обязательство** (я/ты сделаешь X) | взаимно / судья                                      | «Я сдам диплом до 1 июня», «Ты не выкуришь ни одной за месяц» |
-| 1.1  | Обязательство + **доказательство**  | AI-судья по фото/скрину/ссылке, спорное → судья-друг | «Пробегу 10 км» + скрин Strava                                |
-| 2    | **Пул на пул** (команда vs команда) | капитан/большинство, судья при споре                 | 5 на 5 «наши обгонят вас по шагам за неделю»                  |
-| 3    | **Внешние события**                 | оракул                                               | спорт (TxODDS), цены (Pyth), потом всё остальное              |
+| Phase | Type                             | Who decides                                                    | Example                                                                        |
+| ----- | -------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| MVP   | **Commitment** (I/you will do X) | mutual / referee                                               | "I'll hand in my thesis by June 1", "You won't smoke a single one for a month" |
+| 1.1   | Commitment + **proof**           | AI referee on photo/screenshot/link, disputed → friend referee | "I'll run 10 km" + a Strava screenshot                                         |
+| 2     | **Pool vs pool** (team vs team)  | captain/majority, referee on dispute                           | 5 on 5 "our team will out-step yours this week"                                |
+| 3     | **External events**              | oracle                                                         | sports (TxODDS), prices (Pyth), then everything else                           |
 
-### Фаза 2 — уточнение от 2026-09-03: это **пул против пула**, а не один против пула
+### Phase 2, clarification of 2026-09-03: this is **pool against pool**, not one against a pool
 
-Раньше в спеке стояли «групповые пулы», и это читалось как _один бросает вызов, N желающих скидываются
-против него_. Задумывалось другое: **две команды скидываются друг против друга**. Разница
-принципиальная — во втором случае у каждой стороны есть общий интерес и общий результат, а не толпа
-против одиночки.
+Earlier the spec said "group pools", and it read as _one person issues a challenge, N people chip in
+against them_. What was meant is different: **two teams chip in against each other**. The difference
+is fundamental: in the second case each side has a shared interest and a shared result, not a crowd
+against a lone person.
 
-Что переживает переход без изменений: `stakeCreator` / `stakeOpponent` — это уже **суммы стороны**,
-а не человека, и `calculateSettlement` считает по итогам сторон. Комиссия (3% с чистого выигрыша)
-и стейт-машина не меняются.
+What survives the transition unchanged: `stakeCreator` / `stakeOpponent` are already **side totals**,
+not per-person, and `calculateSettlement` computes from the side totals. The fee (3% of the net win)
+and the state machine do not change.
 
-Что придётся менять: `Bet.creator` / `Bet.opponent` — сейчас по одному `Party` на сторону, станут
-списками участников с долями, плюс раздача выигрыша пропорционально вкладу.
+What will have to change: `Bet.creator` / `Bet.opponent` currently hold one `Party` per side and will become
+lists of participants with shares, plus a payout split proportional to contribution.
 
-Три вопроса открыты, до ответа домен не трогаем:
+Three questions are open, and we don't touch the domain until they are answered:
 
-1. Ставки внутри команды равные или свободные? Равные проще во всём; свободные требуют
-   пропорционального дележа и порождают «почему он внёс $5, а я $50».
-2. Как закрывается пул — фиксированный размер (5 на 5, ждём набора) или свободный до дедлайна
-   приёма? И что делать, если стороны набрались неравные по деньгам.
-3. Кто подтверждает результат за команду — капитан, большинство или все? Что считается несогласием.
+1. Are stakes inside a team equal or free? Equal is simpler everywhere; free requires
+   a proportional split and breeds "why did he put in $5 and I put in $50".
+2. How does the pool close: a fixed size (5 on 5, wait until it fills) or open until the acceptance
+   deadline? And what to do if the sides end up unequal in money.
+3. Who confirms the result for a team: the captain, the majority, or everyone? What counts as disagreement.
 
-1v1 остаётся основой: пул-на-пул — надстройка над ним, а не замена.
+1v1 remains the foundation: pool-vs-pool is a layer on top of it, not a replacement.
 
-### Резолюция: два уточнения от 2026-09-03
+### Resolution: two clarifications of 2026-09-03
 
-**1. Молчание судьи оставляет заявку в силе, а не возвращает деньги.** Раньше спор без
-решения судьи вёл к возврату обоим — и это делало спор бесплатным опционом: проигрывающий
-жмёт «не согласен», ждёт неделю, пока друг-судья забьёт, и забирает своё. Теперь молчание
-на любом уровне значит одно и то же — возражение не поддержано. Заявка проходит, спорщик
-теряет залог. В стейт-машине это отдельное действие `settleUnrefereed` (пермиссионлесс),
-а не `refundExpired`, чтобы в аудите было видно, что именно произошло.
+**1. A silent referee leaves the claim standing, rather than refunding.** Earlier, a dispute with
+no referee decision led to a refund for both, and that made disputing a free option: the loser
+hits "disagree", waits a week for the friend-referee to say nothing, and takes their stake back. Now silence
+at any level means the same thing: the objection is not upheld. The claim goes through, and the disputer
+loses their deposit. In the state machine this is a separate action, `settleUnrefereed` (permissionless),
+not `refundExpired`, so the audit shows exactly what happened.
 
-Обратный риск: создатель называет судью, который точно не придёт, и заявляет ложную победу.
-Держится на двух вещах — судья виден на карточке **до** того, как второй вносит деньги
-(принял = согласился с судьёй), и на пункте 2.
+The reverse risk: the creator names a referee who surely won't show up and claims a false win.
+This is held in check by two things: the referee is visible on the card **before** the second person locks money
+(accepting = agreeing to the referee), and by point 2.
 
-**2. Судье — 1% от чистого выигрыша, из нашей комиссии, а не сверх неё.** Спор не случился —
-все 3% нам. Судья реально рассудил — **2% нам, 1% ему**. Для пользователя цена не меняется
-никогда. Платится только за вынесенное решение: судья, названный в споре, которого не было,
-работы не сделал. Это единственная причина, по которой ему вообще есть смысл открыть ссылку.
-На ничьей и на сдержанном Commit судья не получает ничего — доля берётся с выигрыша, а
-выигрыша там нет.
+**2. The referee gets 1% of the net win, out of our fee, not on top of it.** No dispute
+happened: all 3% is ours. The referee actually ruled: **2% to us, 1% to them**. The price to the user never
+changes. It is paid only for a ruling made: a referee named on a bet that never went to dispute
+did no work. This is the only reason they have any incentive to open the link at all.
+On a draw and on a kept Commit the referee gets nothing, since the share comes from the win
+and there is no win there.
 
-## Форматы ставок: Bet / Commit (Dare припаркован 2026-09-03)
+## Bet formats: Bet / Commit (Dare parked 2026-09-03)
 
-> **Dare убран из UI 2026-09-03.** Три формата превращали первый экран в задачу, и Dare —
-> тот, который люди не могли разместить у себя в голове. Механика эскроу у Commit и Dare
-> одинаковая (`calculateSettlement` не различает их вовсе), отличались они одной точкой —
-> `successClaimantSide`: в Commit успех заявляет автор, в Dare цель. Возврат — маленькое
-> известное изменение: строка в `BET_FORMATS`, запись в `FORMAT_COPY` и по одной ветке в
-> `successClaimantSide`, `contract-sentence` и `MoneyFlow`. Деньги трогать не придётся.
+> **Dare was removed from the UI on 2026-09-03.** Three formats turned the first screen into a chore, and Dare
+> was the one people couldn't fit in their heads. The escrow mechanics of Commit and Dare are
+> identical (`calculateSettlement` does not tell them apart at all); they differed in one point,
+> `successClaimantSide`: in Commit the author claims success, in Dare the target does. Bringing it back is a small,
+> known change: a row in `BET_FORMATS`, an entry in `FORMAT_COPY` and one branch each in
+> `successClaimantSide`, `contract-sentence` and `MoneyFlow`. The money code won't need to be touched.
 
-Один on-chain-примитив — **две стороны, две ставки (любая может быть 0), исход, выплата `stake_a + stake_b` победителю**. Три UI-шаблона поверх него:
+One on-chain primitive: **two sides, two stakes (either can be 0), an outcome, a payout of `stake_a + stake_b` to the winner**. Three UI templates on top of it:
 
-| Формат     | Кто ставит        | Выполнил               | Провалил                      | Пример                                   | Юр-профиль                               |
-| ---------- | ----------------- | ---------------------- | ----------------------------- | ---------------------------------------- | ---------------------------------------- |
-| **Bet**    | оба               | победитель забирает 2× | —                             | «Ты не пробежишь 10 км» $20 vs $20       | взаимное пари (самый рискованный)        |
-| **Commit** | только автор      | ставка возвращается    | → друг / charity / свой vault | «Сдам диплом до 1 июня или $50 тебе»     | commitment device (Forfeit/stickK)       |
-| **Dare**   | только вызывающий | цель получает ставку   | вызывающий оставляет себе     | «$20 говорят, ты не съешь это за минуту» | условная награда; цель ничего не рискует |
+| Format     | Who stakes          | Did it                    | Failed                         | Example                                           | Legal profile                                |
+| ---------- | ------------------- | ------------------------- | ------------------------------ | ------------------------------------------------- | -------------------------------------------- |
+| **Bet**    | both                | winner claims 2×          | —                              | "You won't run 10 km" $20 vs $20                  | mutual bet (the riskiest)                    |
+| **Commit** | only the author     | stake is refunded         | → friend / charity / own vault | "I'll hand in my thesis by June 1 or you get $50" | commitment device (Forfeit/stickK)           |
+| **Dare**   | only the challenger | the target gets the stake | the challenger keeps it        | "$20 says you can't eat this in a minute"         | conditional reward; the target risks nothing |
 
-Зачем: Commit и Dare требуют USDC **только у одного** человека (снимает on-ramp-риск), юридически мягче Bet, Commit работает без друга (cold start), Dare — самый вирусный формат для чата.
+Why: Commit and Dare need USDC from **only one** person (removes the on-ramp risk), are legally softer than Bet, Commit works without a friend (cold start), and Dare is the most viral format for a chat.
 
-**Конфликт интересов в односторонних форматах.** Не-ставящая сторона выигрывает от провала (Commit) или от «не справился» (Dare), поэтому:
+**Conflict of interest in one-sided formats.** The non-staking side benefits from a failure (Commit) or from "couldn't do it" (Dare), so:
 
-- она **не может быть единственным судьёй**;
-- ставящий (Commit) / цель (Dare) подаёт «выполнено» + доказательство → у второй стороны **48 ч на оспаривание**, молчание = выплата в пользу подавшего;
-- **оспаривание требует залог 10 % от ставки** (ParkTheBus spam-deposit): спор идёт к судье-другу / AI-судье, проигравший спор теряет залог;
-- назначенный судья не может быть бенефициаром.
+- it **cannot be the sole referee**;
+- the staker (Commit) / the target (Dare) submits "done" + proof → the other side has **48 h to dispute**, silence = payout in favor of the submitter;
+- **disputing requires a deposit of 10% of the stake** (ParkTheBus spam deposit): the dispute goes to the friend-referee / AI referee, and the loser of the dispute loses the deposit;
+- the assigned referee cannot be a beneficiary.
 
-**Не делаем в MVP:** асимметричные ставки ($50 vs $10) — это коэффициенты, т.е. odds → gambling-профиль.
+**Not doing in the MVP:** asymmetric stakes ($50 vs $10). These are price multipliers, i.e. bookmaker-style pricing, which gives a gambling profile.
 
-## Архитектура
+## Architecture
 
 ```
-Next.js (Vercel) ── страница спора /b/<id> с OG-картой ── share в любой чат
-   │  Privy (email/Apple/Google → Solana embedded wallet, без сид-фразы)
+Next.js (Vercel) ── dispute page /b/<id> with an OG card ── share to any chat
+   │  Privy (email/Apple/Google → Solana embedded wallet, no seed phrase)
    │  @solana/kit + Anchor client
    ▼
-Anchor-программа `dispute`                      Backend (Supabase)
-   create_bet(terms_hash, stake_a, stake_b,       • профили, тексты споров, уведомления
-              deadline, referee?, beneficiary?)   • Telegram-бот: «тебя вызвали на спор»,
-              → Bet PDA + vault (stake_b=0 → Commit/Dare)   «дедлайн через 2 ч», «подтверди победителя»
-   accept_bet()           → B вносит stake_b (или 0 — принимает роль)
-   claim_done(evidence)   → окно 48 ч на оспаривание
-   dispute()              → залог 10 % → судья / AI
-   cancel_bet()           → до accept, refund     • OG-image генерация карточек
-   vote_outcome(winner)   → обе стороны           • (1.1) AI-судья: evidence → вердикт → подпись
-   referee_resolve(winner)→ только referee, после
-                            дедлайна и таймаута
-   refund_expired()       → permissionless, после
-                            referee-таймаута
-   payout: атомарно при совпадении голосов, fee → treasury
+Anchor program `dispute`                        Backend (Supabase)
+   create_bet(terms_hash, stake_a, stake_b,       • profiles, dispute texts, notifications
+              deadline, referee?, beneficiary?)   • Telegram bot: "you've been challenged",
+              → Bet PDA + vault (stake_b=0 → Commit/Dare)   "deadline in 2 h", "confirm the winner"
+   accept_bet()           → B deposits stake_b (or 0, takes the role)
+   claim_done(evidence)   → 48 h dispute window
+   dispute()              → 10% deposit → referee / AI
+   cancel_bet()           → before accept, refund  • OG image generation for cards
+   vote_outcome(winner)   → both sides             • (1.1) AI referee: evidence → verdict → signature
+   referee_resolve(winner)→ referee only, after
+                            the deadline and timeout
+   refund_expired()       → permissionless, after
+                            the referee timeout
+   payout: atomic when the votes match, fee → treasury
 ```
 
-Состояния: `Open → Active → (Voting) → Resolved | Refunded | Cancelled`. Условия спора хранятся off-chain, on-chain — их хэш (privacy + дёшево).
+States: `Open → Active → (Voting) → Resolved | Refunded | Cancelled`. Dispute terms are stored off-chain, only their hash on-chain (privacy + cheap).
 
-## Ключевые риски
+## Key risks
 
-| Риск                          | Серьёзность        | Митигация                                                                                                                                                                                            |
-| ----------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **On-ramp: у друга нет USDC** | 🔴 главный UX-риск | Privy funding (Coinbase Onramp / MoonPay) прямо на экране Accept; «переведи из Phantom»; создатель может **оплатить обе ставки** («я ставлю за обоих, проиграешь — вернёшь мне» — только доверенным) |
-| Gambling-классификация        | 🔴                 | Обязательства-first (исход контролирует участник), 1v1 без дома, fee не с коэффициентов, ToS; юрист до масштабирования; гео-блок при необходимости                                                   |
-| Сговор судья + одна сторона   | 🟠                 | Судью утверждают **обе** стороны при создании; судья не может быть участником; on-chain-репутация судей                                                                                              |
-| Оба молчат / не договорились  | 🟠                 | Таймауты → судья → refund. Никогда не «зависает»                                                                                                                                                     |
-| Cold start (нужны двое)       | 🟡                 | Продукт сам вирусный: каждый спор = приглашение. Telegram-бот + share-карточка                                                                                                                       |
-| Комиссии сети                 | 🟢                 | Solana < $0.001; Privy gas sponsorship для первых транзакций                                                                                                                                         |
+| Risk                                | Severity        | Mitigation                                                                                                                                                                                                         |
+| ----------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **On-ramp: the friend has no USDC** | 🔴 main UX risk | Privy funding (Coinbase Onramp / MoonPay) right on the Accept screen; "transfer from Phantom"; the creator can **cover both stakes** ("I stake for both of us, if you lose you pay me back", trusted friends only) |
+| Gambling classification             | 🔴              | Commitments first (a participant controls the outcome), 1v1 with no house, fee not taken from multipliers, ToS; a lawyer before scaling; geo-block if needed                                                       |
+| Referee colludes with one side      | 🟠              | Both sides approve the referee at creation; the referee cannot be a participant; on-chain referee reputation                                                                                                       |
+| Both silent / can't agree           | 🟠              | Timeouts → referee → refund. Never gets stuck                                                                                                                                                                      |
+| Cold start (needs two people)       | 🟡              | The product is viral by itself: every dispute is an invitation. Telegram bot + share card                                                                                                                          |
+| Network fees                        | 🟢              | Solana < $0.001; Privy gas sponsorship for the first transactions                                                                                                                                                  |
 
-## Монетизация
+## Monetization
 
-1. **3 % с банка** при выплате.
-2. Позже: премиум (лимиты > $500, приватные комнаты), fee с групповых пулов, B2B (челленджи в командах).
+1. **3% of the pot** at payout.
+2. Later: premium (limits > $500, private rooms), fee on group pools, B2B (challenges in teams).
 
 ## Roadmap
 
-| Фаза                             | Срок    | Что                                                                                                                                                       |
-| -------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **0 — Прототип + рил**           | 1–2 нед | 5 экранов в Next.js на devnet, share-карточка, waitlist. Снять рил «bro rate my startup idea: I bet my friend $20 he won't…». Метрика: переходы/waitlist  |
-| **1 — MVP: Bet + Commit + Dare** | 4–6 нед | Anchor-программа (один примитив, любая ставка может быть 0) + аудит-lite, Privy, on-ramp, залог за оспаривание, Telegram-бот, mainnet с лимитом $100/спор |
-| **1.1 — AI-судья**               | +3 нед  | evidence-флоу, Claude/Gemini vision, вердикт с подписью, апелляция к судье-другу                                                                          |
-| **2 — Пулы**                     | +4 нед  | комнаты на N человек, пари-мутуэль, permissionless settle                                                                                                 |
-| **3 — Оракулы + native**         | —       | Pyth / TxODDS для спорта и цен; Expo-приложение, когда есть юр-база                                                                                       |
+| Phase                            | Timeline | What                                                                                                                                                           |
+| -------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **0 — Prototype + reel**         | 1–2 wk   | 5 screens in Next.js on devnet, share card, waitlist. Shoot the reel "bro rate my startup idea: I bet my friend $20 he won't…". Metric: click-through/waitlist |
+| **1 — MVP: Bet + Commit + Dare** | 4–6 wk   | Anchor program (one primitive, either stake can be 0) + audit-lite, Privy, on-ramp, dispute deposit, Telegram bot, mainnet with a $100/dispute limit           |
+| **1.1 — AI referee**             | +3 wk    | evidence flow, Claude/Gemini vision, signed verdict, appeal to the friend-referee                                                                              |
+| **2 — Pools**                    | +4 wk    | rooms for N people, pari-mutuel, permissionless settle                                                                                                         |
+| **3 — Oracles + native**         | —        | Pyth / TxODDS for sports and prices; an Expo app once the legal base exists                                                                                    |
 
-## Из комментов (`06`) → куда легло
+## From the comments (`06`) → where it landed
 
-| Боль                               | Решение в продукте                                            |
-| ---------------------------------- | ------------------------------------------------------------- |
-| «Куда идут деньги» (11.8k)         | Эскроу в программе, fee 3 % публично, tx-хэш в карточке спора |
-| «Друзья ставят против тебя» (8.4k) | Это и есть продукт                                            |
-| «Хочу зарабатывать»                | Победитель забирает 2×                                        |
-| Читы / «удалил апп»                | Деньги уже в эскроу; судья; (1.1) доказательства              |
-| «Телефон сел»                      | Таймауты + refund, ничего не сгорает автоматически            |
-| Privacy                            | Условия off-chain, on-chain только хэш                        |
+| Pain point                        | Solution in the product                                                      |
+| --------------------------------- | ---------------------------------------------------------------------------- |
+| "Where does the money go" (11.8k) | Escrow in the program, fee of 3% shown publicly, tx hash on the dispute card |
+| "Friends bet against you" (8.4k)  | That is the product                                                          |
+| "I want to earn"                  | The winner claims 2×                                                         |
+| Cheating / "deleted the app"      | The money is already in escrow; the referee; (1.1) proof                     |
+| "My phone died"                   | Timeouts + refund, nothing burns automatically                               |
+| Privacy                           | Terms off-chain, only the hash on-chain                                      |
 
-## Следующие шаги
+## Next steps
 
-1. `planner` → PRD + архитектура программы + task list для Phase 0.
-2. Phase 0 параллельно: прототип (для рила) и Anchor-скелет.
-3. Юрист — до Phase 1 mainnet.
+1. `planner` → PRD + program architecture + task list for Phase 0.
+2. Phase 0 in parallel: prototype (for the reel) and an Anchor skeleton.
+3. A lawyer, before Phase 1 mainnet.

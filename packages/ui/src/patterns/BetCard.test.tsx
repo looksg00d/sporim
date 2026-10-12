@@ -44,7 +44,7 @@ describe('BetCard', () => {
       <BetCard
         id="0F2A"
         state="active"
-        terms="Ты не пробежишь 10 км до воскресенья."
+        terms="You won't run 10 km by Sunday."
         rows={standardRows({
           pot: usdc(40),
           deadlineLabel: 'Sun 23:59',

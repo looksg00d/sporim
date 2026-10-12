@@ -1,27 +1,27 @@
-# С чего начать
+# Where to start
 
-Открой это первым в новой сессии. Дальше — `docs/STATUS.md` (что сделано и что дальше) и
-`docs/DECISIONS.md` (почему именно так). Оба в репозитории и оба важнее этого файла, если
-разойдутся: этот написан 5 сентября и устареет.
+Open this first in a new session. Then `docs/STATUS.md` (what's done and what's next) and
+`docs/DECISIONS.md` (why it's this way). Both are in the repo and both outrank this file if
+they disagree: this one was written on 5 September and will go stale.
 
 ---
 
-## Решение: кошелёк первым, Фантом сразу
+## Decision: wallet first, Phantom right away
 
-**Принято 5 сентября.** Вход через Phantom становится главным путём, почта — запасным.
-Отменяет решение от 3 сентября, где первой показывалась почта.
+**Decided 5 September.** Sign-in through Phantom becomes the main path, email the fallback.
+This reverses the 3 September decision, where email was shown first.
 
-**Почему.** Вопрос «как человек получает $25 в USDC» был первым в
-`docs/RESEARCH-BRIEF-2.md` и назывался главным риском. У него есть ответ, который убирает
-проблему целиком: **у человека уже есть Фантом и в нём уже есть USDC.** Тогда никакого
-on-ramp не нужно — подключил кошелёк, подписал, готово. Секунды вместо пяти минут, ноль
-KYC, ноль комиссий провайдера.
+**Why.** The question "how does a person get $25 in USDC" was first in
+`docs/RESEARCH-BRIEF-2.md` and was called the main risk. It has an answer that removes
+the problem entirely: **the person already has Phantom, and it already has USDC.** Then no
+on-ramp is needed: connect the wallet, sign, done. Seconds instead of five minutes, zero
+KYC, zero provider fees.
 
-Это сужает аудиторию до тех, у кого кошелёк есть. Осознанно: лучше работающий продукт для
-крипто-аудитории, чем сломанный для всех. On-ramp остаётся в брифе как запасной путь, но
-перестаёт быть блокером запуска.
+This narrows the audience to those who have a wallet. Deliberately: better a working product for
+a crypto audience than a broken one for everyone. The on-ramp stays in the brief as a fallback, but
+stops being a launch blocker.
 
-**В коде уже сделано** (`apps/web/src/features/auth/AuthProvider.tsx`, 5 сентября):
+**Already done in code** (`apps/web/src/features/auth/AuthProvider.tsx`, 5 September):
 
 ```ts
 loginMethods: ['wallet', 'email'],
@@ -31,116 +31,116 @@ appearance: {
 },
 ```
 
-Двух полей, а не одного: `showWalletLoginFirst` поднимает **секцию кошельков**, а `walletList`
-называет кнопки внутри неё и их порядок. По умолчанию у Privy там эфирный набор — metamask,
-coinbase, rainbow, wallet_connect. Так что Фантом именно первой кнопкой на первом экране.
+Two fields, not one: `showWalletLoginFirst` raises the **wallet section**, while `walletList`
+names the buttons inside it and their order. By default Privy shows an Ethereum set there: metamask,
+coinbase, rainbow, wallet_connect. So this puts Phantom as the first button on the first screen.
 
-`'phantom'` — отдельное значение `WalletListEntry`, проверено по типам установленного SDK, не
-по документации. `detected_solana_wallets` вторым намеренно: это ловушка для того расширения,
-которое реально стоит у человека, чтобы владельцу Solflare или Backpack не казалось, что
-продукт сделан под чужой кошелёк.
+`'phantom'` is a separate `WalletListEntry` value, checked against the installed SDK's types, not
+against the docs. `detected_solana_wallets` is second on purpose: it's a catch for whichever
+extension the person actually has installed, so an owner of Solflare or Backpack doesn't feel the
+product is built for someone else's wallet.
 
-Есть ещё `loginMethodsAndOrder.primary`, который поставил бы `'phantom'` буквально выше всех
-социальных входов. **Не используем:** Privy помечает его `@deprecated` и предупреждает, что он
-переопределяет их дефолты. Два поддерживаемых поля лучше одного устаревшего.
+There's also `loginMethodsAndOrder.primary`, which would put `'phantom'` literally above all
+social sign-ins. **We don't use it:** Privy marks it `@deprecated` and warns that it
+overrides their defaults. Two supported fields beat one deprecated one.
 
 ---
 
-## Одна механическая проблема, и чем она решается
+## One mechanical problem, and how it's solved
 
-Трафик приходит с рилса, а инстаграм открывает ссылки **во встроенном браузере**. Там нет
-расширений и нет инжектированного кошелька — то есть на том самом экране, куда придёт
-большинство, кнопка «подключить Phantom» подключать нечего. Это не мнение, это устройство
-вебвью.
+Traffic comes from a reel, and Instagram opens links **in its in-app browser**. There are no
+extensions and no injected wallet there, so on the very screen most people will land on, the
+"connect Phantom" button has nothing to connect to. That's not an opinion, it's how the
+webview is built.
 
-Ответ у Фантома есть, и он подтверждён их доками (архив ресёрча, `docs.phantom.com`,
+Phantom has an answer, confirmed by their docs (research archive, `docs.phantom.com`,
 `status: 200`):
 
-> «users can open web apps within Phantom’s in-app browser via the Browse deeplink»
+> "users can open web apps within Phantom’s in-app browser via the Browse deeplink"
 
-То есть: из инстаграмного вебвью диплинком открываем **свой сайт внутри браузера Фантома**,
-где кошелёк уже инжектирован и всё работает как на десктопе с расширением.
+That is: from the Instagram webview, a deep link opens **our own site inside Phantom's browser**,
+where the wallet is already injected and everything works as on desktop with the extension.
 
-Формат универсальных ссылок в доках такой:
+The universal link format in the docs is:
 
 ```
 https://phantom.app/ul/<version>/<method>
 ```
 
-**Точный формат самой Browse-ссылки в архиве не сохранился** — страницу ресёрч не забрал.
-Первым делом проверь её в живых доках, не бери на веру мою реконструкцию. Проверять надо на
-телефоне: как ведёт себя переход из вебвью инстаграма, возвращается ли человек, что видит
-тот, у кого Фантом не установлен.
+**The exact format of the Browse link itself didn't survive in the archive**, since the research
+didn't capture that page. First thing, check it in the live docs; don't take my reconstruction on faith. It has to be checked on a phone:
+how the jump from the Instagram webview behaves, whether the person comes back, what
+someone without Phantom installed sees.
 
 ---
 
-## Открытый вопрос: нужен ли нам ещё Privy
+## Open question: do we still need Privy
 
-Пока читал доки Фантома, нашёл то, чего не знал: **у Phantom есть собственный SDK со входом
-через Google и Apple и встроенным кошельком.** Из `docs.phantom.com/llms.txt`:
+While reading the Phantom docs I found something I didn't know: **Phantom has its own SDK with sign-in
+through Google and Apple and an embedded wallet.** From `docs.phantom.com/llms.txt`:
 
-> «Social Login (Google, Apple): Let users sign in with Google or Apple and automatically
-> receive an embedded wallet»
-> «Browser Extension Login: Connect to existing Phantom browser extension wallets with
-> fallback handling»
+> "Social Login (Google, Apple): Let users sign in with Google or Apple and automatically
+> receive an embedded wallet"
+> "Browser Extension Login: Connect to existing Phantom browser extension wallets with
+> fallback handling"
 
-Это ровно то, за чем мы брали Privy. Если Phantom SDK закрывает и подключение существующего
-кошелька, и создание встроенного для тех, у кого его нет, — вся конструкция становится проще
-на один сторонний сервис, на один secret и на одну строчку в бюджете ($299/мес при 500 MAU
-у Privy).
+That's exactly what we took Privy for. If the Phantom SDK covers both connecting an existing
+wallet and creating an embedded one for those who don't have it, the whole setup gets simpler
+by one third-party service, one secret and one line in the budget ($299/month at 500 MAU
+on Privy).
 
-**Не переписывай сразу.** Privy работает, проверен на живой сессии, у него 16 тестов на
-проверку токена. Сначала ответь на три вопроса:
+**Don't rewrite right away.** Privy works, is proven on a live session, and has 16 tests on
+token verification. First answer three questions:
 
-1. Как Phantom SDK доказывает личность серверу? У Privy это JWT, проверяемый по JWKS, и
-   `sub` едет в `app.user_id` для RLS. Если у Фантома этого нет, а есть только подпись
-   сообщения кошельком — это другая модель сессии, и её надо строить (nonce, подпись,
-   собственная кука), а не «поменять провайдер».
-2. Что происходит с человеком, у которого Фантома нет вообще, — и на телефоне, и в вебвью.
-3. Сколько стоит и какие лимиты.
+1. How does the Phantom SDK prove identity to the server? With Privy it's a JWT verified against JWKS, and
+   `sub` goes into `app.user_id` for RLS. If Phantom has no such thing and only offers a
+   message signature from the wallet, that's a different session model, and it has to be built (nonce, signature,
+   our own cookie), not just "swap the provider".
+2. What happens to a person who has no Phantom at all, both on a phone and in the webview.
+3. What it costs and what the limits are.
 
-Если ответы хорошие — миграция вычищает целый слой. Если нет — оставляем Privy, он и так
-умеет `solana_wallet_auth`, и меняется только порядок в модалке.
-
----
-
-## Порядок работ
-
-1. ~~Порядок входа в `AuthProvider.tsx`~~ — **сделано 5 сентября**, см. выше.
-2. **Browse-диплинк** — проверить формат в доках, сделать переход, **проверить на своём
-   телефоне из инстаграма.** Это единственная часть, которую нельзя проверить тестом.
-3. **Приём по ссылке** — `[NEXT]` в `STATUS.md` и последний разрыв в петле. Ссылка, которую
-   страница показывает создателю, у друга сейчас не открывается: он ещё не участник, и
-   `/b/[code]` честно отвечает «не найдено». Форма решения известна и уже применялась для
-   судьи — миграция `0004`, секрет в `set_config`. Нужна такая же таблица приглашений, своя
-   политика и сам переход `accept`.
-4. **Ответить на вопрос про Phantom SDK** — до того, как в Privy вложится ещё код.
-
-Пункты 1 и 2 можно делать параллельно с 3: они не пересекаются.
+If the answers are good, the migration clears out a whole layer. If not, we keep Privy, which
+already supports `solana_wallet_auth`, and only the order in the modal changes.
 
 ---
 
-## Что нужно знать, чтобы не наступить
+## Order of work
 
-- **Открывай живую страницу, прежде чем говорить «готово».** 5 сентября 523 зелёных теста не
-  заметили, что в продукте вообще нет навигации; один взгляд на задеплоенную страницу нашёл
-  ещё два дефекта. Тесты не видят того, чего на экране нет.
-- **Деньги менять нельзя без чтения** `docs/DECISIONS.md` за 3–4 сентября. Правила
-  разворачивались дважды: залог за оспаривание убран, молчание судьи возвращает деньги.
-  Причины записаны, но неочевидны.
-- **USDC замораживается** — freeze authority ненулевой, мультисиг 2 из 4, проверено на
-  mainnet. Никогда не обещай, что средства нельзя заморозить.
-- Пины под Windows, шрифты, два каталога сборки — в `STATUS.md`, раздел «Известные хвосты».
-- Интеграционные тесты просыпаются только при `DATABASE_URL` в окружении. Без него
-  `pnpm check` называет число поменьше, и это не регрессия.
+1. ~~Sign-in order in `AuthProvider.tsx`~~: **done 5 September**, see above.
+2. **Browse deep link**: check the format in the docs, build the jump, **test on your own
+   phone from Instagram.** This is the one part a test can't verify.
+3. **Accepting via link**: `[NEXT]` in `STATUS.md` and the last gap in the loop. The link the
+   page shows the creator doesn't open for the friend yet: they're not a participant, and
+   `/b/[code]` honestly answers "not found". The shape of the solution is known and was already applied for
+   the referee: migration `0004`, secret in `set_config`. It needs the same kind of invites table, its own
+   policy, and the `accept` transition itself.
+4. **Answer the Phantom SDK question**: before more code gets invested in Privy.
 
-## Что ждёт тебя, а не меня
+Items 1 and 2 can run in parallel with 3: they don't overlap.
 
-- Перевыпустить секреты, прошедшие через чат: пароль базы в Xata и app secret в Privy.
-- Перевернуть редирект домена: сейчас `sporim.fun` → `www.sporim.fun`, нужно наоборот.
-  Vercel → Settings → Domains. CLI этим не управляет.
-- Три вопроса про пул-на-пул: ставки внутри команды равные или свободные, как закрывается
-  пул, кто подтверждает за команду.
-- Запустить `docs/RESEARCH-BRIEF-2.md`. Раздел 1 про on-ramp теперь **не первый по
-  важности** — вместо него смотри вопросы про Phantom SDK выше и раздел 3 про сверку Rust и
+---
+
+## What to know so you don't step on a rake
+
+- **Open the live page before saying "done".** On 5 September 523 green tests didn't
+  notice that the product had no navigation at all; one look at the deployed page found
+  two more defects. Tests can't see what's missing from the screen.
+- **Don't change the money logic without reading** `docs/DECISIONS.md` for 3–4 September. The rules
+  were reversed twice: the dispute bond was removed, referee silence returns the money.
+  The reasons are written down but not obvious.
+- **USDC can be frozen**: the freeze authority is non-null, a 2-of-4 multisig, verified on
+  mainnet. Never promise that funds can't be frozen.
+- Windows pins, fonts, two build directories: see `STATUS.md`, the "Known loose ends" section.
+- Integration tests only wake up when `DATABASE_URL` is in the environment. Without it,
+  `pnpm check` reports a smaller number, and that's not a regression.
+
+## What's waiting for you, not me
+
+- Reissue the secrets that passed through chat: the database password in Xata and the app secret in Privy.
+- Flip the domain redirect: currently `sporim.fun` → `www.sporim.fun`, it needs to be the other way around.
+  Vercel → Settings → Domains. The CLI doesn't manage this.
+- Three questions about pool-vs-pool: are stakes inside a team equal or free, how a
+  pool closes, who confirms for the team.
+- Run `docs/RESEARCH-BRIEF-2.md`. Section 1 on the on-ramp is now **not first in
+  importance**: instead, look at the Phantom SDK questions above and section 3 on reconciling Rust and
   TypeScript.

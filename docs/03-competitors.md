@@ -1,49 +1,49 @@
-# 03 · Конкуренты (Web2)
+# 03 · Competitors (Web2)
 
-## Сводная таблица
+## Summary table
 
-| Продукт              | Что при провале                                                  | Куда идут деньги                     | Верификация                                             | Цена                      | Деньги на кону    |
-| -------------------- | ---------------------------------------------------------------- | ------------------------------------ | ------------------------------------------------------- | ------------------------- | ----------------- |
-| **Forfeit**          | списание с карты / смс другу / блок приложений                   | компании (по умолчанию)              | фото-AI, видео-человек, GPS, Health, Screen Time, Plaid | free + $7.99 / $12.99 мес | сам выбираешь     |
-| **Paywake**          | «не получаешь бонус» (юридически) / теряешь депозит (фактически) | **85 % → победителям, 15 % Paywake** | фото бытового предмета за 3 мин                         | 0, комиссия на вывод      | $3–$99 / день     |
-| **stickK**           | деньги уходят получателю                                         | друг / charity / **anti-charity**    | самоотчёт + опц. рефери                                 | $5 за контракт с деньгами | сам выбираешь     |
-| **Beeminder**        | эскалирующий pledge                                              | компании                             | авто-данные (интеграции)                                | free; $8 / $16 / $81 мес  | $0→5→10→30→90→270 |
-| **FineStreak**       | штраф через Stripe + звонок/смс агента                           | компании                             | фото, скриншот, локация                                 | 7 дн free, $5–20 мес      | $0.10 – $50       |
-| **Accountablo**      | теряешь ставку                                                   | зависит от конфига                   | AI check-in в Slack/WhatsApp                            | ?                         | $5 (до $50 Pro)   |
-| **Go Fucking Do It** | списание в дедлайн                                               | компании                             | честное слово                                           | free                      | сам выбираешь     |
-| **Habitica**         | урон персонажу                                                   | —                                    | самоотчёт                                               | free                      | нет               |
-| **Alarmy (Pay)**     | будильник-миссии                                                 | —                                    | фото/шаги/математика                                    | подписка                  | нет               |
+| Product              | On failure                                                               | Where the money goes                | Verification                                           | Price                      | Money at stake     |
+| -------------------- | ------------------------------------------------------------------------ | ----------------------------------- | ------------------------------------------------------ | -------------------------- | ------------------ |
+| **Forfeit**          | card charge / SMS to a friend / app blocking                             | the company (by default)            | photo AI, video human, GPS, Health, Screen Time, Plaid | free + $7.99 / $12.99 mo   | you choose         |
+| **Paywake**          | "you don't get the bonus" (legally) / you lose the deposit (in practice) | **85% → winners, 15% Paywake**      | photo of a household object within 3 min               | 0, withdrawal fee          | $3–$99 / day       |
+| **stickK**           | money goes to the recipient                                              | friend / charity / **anti-charity** | self-report + optional referee                         | $5 per contract with money | you choose         |
+| **Beeminder**        | escalating pledge                                                        | the company                         | automatic data (integrations)                          | free; $8 / $16 / $81 mo    | $0→5→10→30→90→270  |
+| **FineStreak**       | Stripe charge + agent call/SMS                                           | the company                         | photo, screenshot, location                            | 7 days free, $5–20 mo      | $0.10 – $50        |
+| **Accountablo**      | you lose the stake                                                       | depends on config                   | AI check-in in Slack/WhatsApp                          | ?                          | $5 (up to $50 Pro) |
+| **Go Fucking Do It** | charge at the deadline                                                   | the company                         | word of honor                                          | free                       | you choose         |
+| **Habitica**         | damage to your character                                                 | —                                   | self-report                                            | free                       | none               |
+| **Alarmy (Pay)**     | alarm missions                                                           | —                                   | photo/steps/math                                       | subscription               | none               |
 
-## Paywake — самый близкий к «крипто-версии» по экономике
+## Paywake, closest to a "crypto version" in its economics
 
-**Сайт:** <https://paywake.com/> · **iOS:** [App Store](https://apps.apple.com/us/app/paywake/id6447996352) · Компания 7 AM, Inc. Основана 2022 в USC — **Jack Mandelkorn и Kai Medina** (тот самый `kai_medina` из комментов к рилу).
+**Site:** <https://paywake.com/> · **iOS:** [App Store](https://apps.apple.com/us/app/paywake/id6447996352) · Company 7 AM, Inc. Founded in 2022 at USC by **Jack Mandelkorn and Kai Medina** (the very `kai_medina` from the reel comments).
 
-- Депозит **$3–$99**, время подъёма 5–10 AM. После будильника **3 минуты**, чтобы сфотографировать бытовой предмет (до 10 предметов: ручка двери, зубная щётка, ведро…).
-- Проснулся → депозит назад **+ доля пула проигравших** (минимум +$0.01). Paywake оставляет **15 %**. Выплаты в полдень.
-- Streak-бонус до **25 %**, лидерборды (неделя/месяц/all-time), «2X wakeup» для тех, кто проваливался.
-- Реальные выплаты **крошечные**: при ставке $99 — $0.30–$3, обычно ~$1 (отзывы App Store). Жалобы: «payout in cents», не пришло уведомление → потерял депозит.
-- **ToS (февраль 2026)** переписан под «incentive program»: депозит формально «не списывается», просто «не получаешь бонус». Это **юридический хедж от классификации как gambling** — важный сигнал для крипто-версии.
-- Деньги — через **Stripe Connect** (у каждого юзера connected account), вывод на дебетовую карту / Venmo (комиссия max($0.25, 1.75 %)).
+- Deposit of **$3–$99**, wake-up time 5–10 AM. After the alarm there are **3 minutes** to photograph a household object (up to 10 objects: door handle, toothbrush, bucket...).
+- Woke up → deposit back **+ a share of the losers' pool** (minimum +$0.01). Paywake keeps **15%**. Payouts at noon.
+- Streak bonus up to **25%**, leaderboards (week/month/all-time), "2X wakeup" for those who have failed before.
+- Real payouts are **tiny**: on a $99 deposit, $0.30–$3, usually ~$1 (App Store reviews). Complaints: "payout in cents", no notification arrived → lost the deposit.
+- **ToS (February 2026)** rewritten as an "incentive program": the deposit is formally "not charged", you just "don't get the bonus". This is a **legal hedge against being classified as gambling**, an important signal for a crypto version.
+- Money flows through **Stripe Connect** (each user has a connected account), withdrawal to a debit card / Venmo (fee max($0.25, 1.75%)).
 
-**Что брать:** pool-модель «ленивые платят дисциплинированным», streak-бонус, лидерборд, 3-минутное окно с фото. **Чего избегать:** копеечные выплаты убивают мотивацию — нужен yield или крупнее пул.
+**What to take:** the pool model "the lazy pay the disciplined", streak bonus, leaderboard, 3-minute photo window. **What to avoid:** penny payouts kill motivation, so we need yield or a bigger pool.
 
-## stickK — модель «anti-charity»
+## stickK, the "anti-charity" model
 
-Yale, поведенческие экономисты. Деньги проигравшего идут **организации, которую ты ненавидишь** — сильнее, чем просто потеря. Самоотчёт, поэтому легко обмануть. $5 за контракт. Выплата после окончания контракта, минус комиссии, charity — раз в год без tax receipt.
+Yale, behavioral economists. The loser's money goes to **an organization you hate**, which hurts more than a plain loss. Self-report, so it is easy to cheat. $5 per contract. Payout after the contract ends, minus fees; charity gets it once a year with no tax receipt.
 
-## Beeminder — «derailing it is nailing it»
+## Beeminder, "derailing it is nailing it"
 
-Честно пишут, что живут на pledge'ах провалившихся. Лестница $0→$5→$10→$30→$90→$270. Сильны в авто-данных (шаги, слова, часы). Слабы в том, что нельзя выбрать сумму сразу.
+They openly say they live off the pledges of those who fail. Ladder $0→$5→$10→$30→$90→$270. Strong in automatic data (steps, words, hours). Weak in that you can't choose the amount up front.
 
-## Ключевые выводы для позиционирования
+## Key takeaways for positioning
 
-1. Рынок разделён по оси **«кто решает, что ты провалился»**: самоотчёт (stickK, GFDI) ↔ evidence (Forfeit, Paywake, FineStreak) ↔ данные (Beeminder). Крипта добавляет третью опцию: **on-chain-верифицируемые действия** (кошелёк, GitHub, Strava через оракул).
-2. По оси **«куда идут деньги»**: компании (Forfeit, Beeminder) ↔ получателю (stickK) ↔ **пулу победителей (Paywake)**. Только последнее даёт «ты зарабатываешь» — и это единственное, что закрывает возражение «зачем ставить приложение, которое отбирает деньги».
-3. Все Web2-игроки завязаны на **Stripe + US-карты** → недоступны в RU/CIS и куче стран. Кошелёк = глобально с первого дня.
-4. Никто не даёт **yield на escrow**. Если ставка лежит в USDC-vault под 4–8 % APY, то «проснулся → получил ставку + yield + долю пула».
+1. The market splits along the axis **"who decides that you failed"**: self-report (stickK, GFDI) ↔ evidence (Forfeit, Paywake, FineStreak) ↔ data (Beeminder). Crypto adds a third option: **on-chain verifiable actions** (wallet, GitHub, Strava via an oracle).
+2. Along the axis **"where the money goes"**: the company (Forfeit, Beeminder) ↔ a recipient (stickK) ↔ **the winners' pool (Paywake)**. Only the last one gives "you earn", and it is the only thing that answers the objection "why stake on an app that takes your money".
+3. All Web2 players depend on **Stripe + US cards**, so they are unavailable in RU/CIS and many other countries. A wallet means global from day one.
+4. Nobody offers **yield on escrow**. If the stake sits in a USDC vault at 4–8% APY, then "woke up → got your stake + yield + a share of the pool".
 
-## Источники
+## Sources
 
-- [Paywake ToS 2026-02-02](https://paywake.com/docs/terms.pdf) · [USC Annenberg Media о Paywake](https://www.uscannenbergmedia.com/2022/02/23/getting-paid-to-wake-up-all-you-need-to-know-about-the-student-run-startup-paywake/) · [Sleepopolis](https://sleepopolis.com/news/app-pays-to-wake-up/)
+- [Paywake ToS 2026-02-02](https://paywake.com/docs/terms.pdf) · [USC Annenberg Media on Paywake](https://www.uscannenbergmedia.com/2022/02/23/getting-paid-to-wake-up-all-you-need-to-know-about-the-student-run-startup-paywake/) · [Sleepopolis](https://sleepopolis.com/news/app-pays-to-wake-up/)
 - [FineStreak — Forfeit alternatives](https://finestreak.com/blog/forfeit-app-alternatives) · [stickK vs Forfeit](https://finestreak.com/blog/stickk-vs-forfeit) · [Forfeit vs Beeminder](https://finestreak.com/blog/forfeit-vs-beeminder)
 - [Accountablo review](https://www.accountablo.com/blog/forfeit-overlord-review)

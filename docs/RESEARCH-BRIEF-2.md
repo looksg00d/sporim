@@ -1,215 +1,215 @@
-# Второй заход: что осталось и что появилось
+# Second pass: what's left and what's new
 
-Первый бриф (`docs/RESEARCH-BRIEF.md`) отработан, выводы — в `docs/DECISIONS.md` за
-4 сентября. Он закрыл три вещи начисто: форкать эскроу нечего, USDC замораживается
-двумя подписями из четырёх, и залог за оспаривание нам не нужен.
+The first brief (`docs/RESEARCH-BRIEF.md`) is done, with findings in `docs/DECISIONS.md` under
+4 September. It closed three things cleanly: there is nothing to fork for escrow, USDC can be frozen
+by two signatures out of four, and we don't need a dispute bond.
 
-Этот бриф про то, что осталось открытым **и** что появилось из-за принятых решений.
-Порядок разделов — по риску, а не по интересности.
+This brief covers what is still open **and** what appeared because of the decisions made.
+Sections are ordered by risk, not by interest.
 
-**Главное изменение приоритета.** В первом брифе я считал эскроу самым большим
-риском. После ответов — нет. Эскроу это понятная инженерная работа, где мы знаем,
-что делать. Раздел 1 ниже — про то, чего мы не знаем вообще, и без чего эскроу
-некому будет пользоваться.
+**The main change in priority.** In the first brief I counted escrow as the biggest
+risk. After the answers, it isn't. Escrow is understandable engineering work where we know
+what to do. Section 1 below is about what we don't know at all, and without which there
+will be nobody to use the escrow.
 
 ---
 
-## 1. Как человек с инстаграма получает $25 в USDC — понижено в приоритете
+## 1. How a person from Instagram gets $25 in USDC (downgraded in priority)
 
-> **Обновлено 5 сентября.** У вопроса нашёлся ответ, который убирает его целиком для той
-> аудитории, на которую мы теперь целимся: **у человека уже есть Фантом и в нём есть USDC.**
-> Вход кошельком стал главным путём (`docs/NEXT-SESSION.md`), и тогда on-ramp не нужен
-> вообще — подключил, подписал, готово.
+> **Updated 5 September.** The question turned out to have an answer that removes it entirely for
+> the audience we are now targeting: **the person already has Phantom, with USDC in it.**
+> Wallet sign-in became the main path (`docs/NEXT-SESSION.md`), and then no on-ramp is
+> needed at all: connect, sign, done.
 >
-> Раздел остаётся как запасной путь: он понадобится в тот день, когда мы захотим людей без
-> кошелька. Но это больше не то, с чего начинать, и не блокер запуска. Вместо него самый
-> дорогой открытый вопрос — раздел 3 (сверка Rust и TypeScript) и вопросы про Phantom SDK
-> из `NEXT-SESSION.md`.
+> The section stays as a fallback: it will be needed the day we want people without
+> a wallet. But it is no longer where to start, and not a launch blocker. In its place the
+> most expensive open question is section 3 (reconciling Rust and TypeScript) and the questions about the
+> Phantom SDK in `NEXT-SESSION.md`.
 
-Двадцатидвухлетний человек увидел рилс, открыл ссылку во встроенном браузере
-инстаграма, вошёл почтой, ему создался кошелёк Privy. **У него ноль долларов.**
-Спор на пиво стоит $25. Что происходит дальше?
+A twenty-two-year-old saw a reel, opened the link in Instagram's in-app browser,
+signed in with email, and got a Privy wallet. **They have zero dollars.**
+A beer bet costs $25. What happens next?
 
-Если ответ «скачай Phantom, купи SOL на бирже, свапни в USDC, переведи» — продукта
-нет. Ни один спор на пиво этого не переживёт.
+If the answer is "download Phantom, buy SOL on an exchange, swap to USDC, transfer"
+there is no product. No beer bet survives that.
 
-**Вопросы:**
+**Questions:**
 
-- Какие **on-ramp прямо в USDC на Solana** существуют и что они требуют: Coinbase
-  Onramp, MoonPay, Transak, Stripe Crypto, Ramp. Для каждого — минимальная сумма,
-  комиссия на $25 (не на $1000 — на $25, там комиссия может быть половиной суммы),
-  нужен ли KYC и с какого порога, какие страны, работает ли внутри вебвью.
-- Есть ли у **Privy встроенный funding flow** и через кого он идёт.
-- **Apple Pay / Google Pay → USDC** — существует ли путь в один экран.
-- Что делают конкуренты и соседи: как заводят первые деньги Polymarket, друзья-
-  переводилки, любой продукт, где сумма маленькая, а пользователь не крипто.
-- **Обратный путь.** Выиграл $50 — как их вывести и сколько это стоит. Продукт, из
-  которого нельзя выйти, — это не продукт.
-- Ограничение по возрасту и KYC: с какого момента появляется обязанность проверять.
+- Which **on-ramps straight into USDC on Solana** exist and what they require: Coinbase
+  Onramp, MoonPay, Transak, Stripe Crypto, Ramp. For each: minimum amount,
+  fee on $25 (not on $1000, on $25, where the fee can be half the amount),
+  whether KYC is needed and from what threshold, which countries, whether it works inside a webview.
+- Does **Privy have a built-in funding flow**, and who does it run through?
+- **Apple Pay / Google Pay → USDC**: does a one-screen path exist?
+- What competitors and neighbors do: how Polymarket, friend-to-friend payment apps,
+  any product with small amounts and non-crypto users onboards the first money.
+- **The way back.** You won $50: how do you withdraw it and what does that cost? A product you
+  can't exit is not a product.
+- Age limits and KYC: at what point the obligation to verify appears.
 
-**Что принести:** таблицу «провайдер → минимум → комиссия на $25 → KYC → страны →
-сколько экранов». И честный ответ на вопрос: **существует ли вообще путь от нуля до
-$25 в USDC быстрее чем за пять минут.** Если нет — это меняет продукт целиком, и
-лучше знать сейчас.
-
----
-
-## 2. Программа эскроу: не «что форкнуть», а как её писать и проверять
-
-Форка нет, пишем на Anchor сами — это решено. Открыты детали, и особенно то, как
-такое тестируют.
-
-**Вопросы:**
-
-- **Чем тестируют программы на Solana в 2026 году:** LiteSVM, solana-bankrun,
-  `solana-test-validator`, mollusk. Что быстрее, что ближе к реальности, что
-  работает на Windows и в CI. Нам нужен цикл в секунды, а не в минуты — весь проект
-  построен на TDD.
-- **Как мотать время вперёд в тестах.** Половина нашей логики про дедлайны:
-  claim window, дедлайн судьи, возврат по таймауту. Как подделать `Clock`.
-- **Upgrade authority: оставлять или сжигать.** Что делают живые продукты, через
-  сколько сжигают, как выкатывают исправления после. Это не только безопасность —
-  это ещё и «кто на самом деле контролирует деньги».
-- **Арифметика в Rust.** Комиссия считается floor'ом от чистого выигрыша, деньги
-  `u64`. Checked-арифметика, переполнение, деление — какие типовые ошибки ловили
-  аудиторы в чужих программах.
-- **Сколько compute units** съедает инструкция с тремя-четырьмя token-переводами
-  (победитель, казна, судья) плюс закрытие аккаунтов. Влезаем ли в 200k на
-  инструкцию.
-- **Devnet USDC** — есть ли канонический минт и кран, или заводить свой.
-
-**Откуда:** `anza-xyz/kit`, `coral-xyz/anchor` (тесты в репозитории), LiteSVM,
-`solana-program/token`, публичные аудиты (OtterSec, Neodyme, Sec3) — читать **разделы
-findings**, а не выводы: типовые ошибки повторяются.
-
-**Что принести:** рекомендованный тестовый стек с примером «мотаем время на 7 дней
-вперёд и проверяем возврат», и список из 10–15 типовых ошибок из аудитов, применимых
-к нашей форме (двусторонний депозит, арбитр, дедлайн, комиссия).
+**What to bring:** a table of "provider → minimum → fee on $25 → KYC → countries →
+number of screens". And an honest answer to the question: **does a path from zero to
+$25 in USDC in under five minutes exist at all?** If not, that changes the whole product, and
+better to know now.
 
 ---
 
-## 3. Как гарантировать, что Rust и TypeScript считают одинаково
+## 2. The escrow program: not "what to fork", but how to write and verify it
 
-Наш самый недооценённый риск. `calculateSettlement` — единственный источник правды по
-деньгам, 50 тестов, `bigint` в базовых единицах. Программа на Solana будет считать то
-же самое второй раз, на Rust, в `u64`. **Если они разойдутся хоть на одну единицу,
-транзакция упадёт или, хуже, заплатит не то.**
+There is no fork, we write it ourselves in Anchor. That's decided. The details are open, and especially how
+such a thing is tested.
 
-**Вопросы:**
+**Questions:**
 
-- Как это делают другие: общие фикстуры-векторы в JSON, которые гоняют обе стороны?
-  Property-based тесты с одинаковым сидом? Генерация одной реализации из другой?
-- Есть ли инструменты, гоняющие один набор кейсов и на Rust, и на TS.
-- Округление: `bigint` в TS и `u64` в Rust ведут себя одинаково при делении с floor —
-  где это ломается на краях (ноль, максимум, нечётные комиссии).
-- Как ловят расхождение **до** деплоя, а не после.
+- **What Solana programs are tested with in 2026:** LiteSVM, solana-bankrun,
+  `solana-test-validator`, mollusk. What's faster, what's closer to reality, what
+  works on Windows and in CI. We need a loop of seconds, not minutes, since the whole project
+  is built on TDD.
+- **How to fast-forward time in tests.** Half our logic is about deadlines:
+  claim window, referee deadline, timeout refund. How to fake `Clock`.
+- **Upgrade authority: keep or burn.** What live products do, how long until they
+  burn it, how they ship fixes afterwards. This is not only security,
+  it's also "who actually controls the money".
+- **Arithmetic in Rust.** The fee is the floor of the net winnings, money is
+  `u64`. Checked arithmetic, overflow, division: which typical bugs auditors caught in
+  other people's programs.
+- **How many compute units** an instruction with three or four token transfers
+  (winner, treasury, referee) plus account closing eats. Do we fit in 200k per
+  instruction?
+- **Devnet USDC**: is there a canonical mint and faucet, or do we spin up our own?
 
-**Что принести:** конкретный работающий приём с примером кода. Даже простой —
-«JSON с 200 векторами, читают оба теста» — годится, если видно, как устроено.
+**Where from:** `anza-xyz/kit`, `coral-xyz/anchor` (tests in the repo), LiteSVM,
+`solana-program/token`, public audits (OtterSec, Neodyme, Sec3). Read the **findings
+sections**, not the conclusions: typical bugs repeat.
 
----
-
-## 4. Воронка «рилс → ссылка → первый спор»
-
-Ни разу не исследована, а это единственный канал роста. `docs/01` разбирал
-комментарии под рилсами — это про спрос, не про механику перехода.
-
-**Вопросы:**
-
-- Инстаграм и ссылки в 2026: что кликабельно в рилсе, что в сторис, что в профиле,
-  что в комментариях. Режется ли охват за внешнюю ссылку.
-- **Встроенный браузер инстаграма** — что в нём ломается на практике: cookies,
-  localStorage, возврат на вкладку, «открыть в Safari». Собрать список известных
-  граблей, а не догадок.
-- Как из вебвью попасть в нормальный браузер, не потеряв состояние.
-- Что реально работает у продуктов с той же формой: ссылка → продукт → приглашение
-  второго человека. Особенно **приглашение**: наша вторая половина воронки это когда
-  человек кидает ссылку другу в личку.
-- Метрики, которые стоит мерить с первого дня, и типичные конверсии, чтобы понимать,
-  плохо у нас или нормально.
-
-**Что принести:** список известных проблем инстаграмного вебвью со ссылками на
-первоисточники, и разбор двух-трёх продуктов, растущих через «кинь ссылку другу».
+**What to bring:** a recommended test stack with an example of "fast-forward 7 days
+and check the refund", and a list of 10–15 typical bugs from audits that apply
+to our shape (two-sided deposit, arbiter, deadline, fee).
 
 ---
 
-## 5. Карточка в чате — доделать то, что не закрылось
+## 3. How to guarantee Rust and TypeScript compute the same thing
 
-Из первого брифа остались нерешёнными размеры и кэш у мессенджеров. Плюс появился
-новый вопрос: как это тестировать.
+Our most underrated risk. `calculateSettlement` is the single source of truth for
+money, 50 tests, `bigint` in base units. The Solana program will compute
+the same thing a second time, in Rust, in `u64`. **If they diverge by even one unit, the
+transaction fails or, worse, pays out the wrong amount.**
 
-**Вопросы:**
+**Questions:**
 
-- Telegram, WhatsApp, Instagram DM, iMessage: размер, вес, форматы, время жизни кэша,
-  есть ли способ инвалидировать. В прошлый раз не нашли — попробовать через
-  разработчиков ботов и обсуждения, а не только через официальные доки.
-- **Как тестировать OG-картинку в CI.** Рендерим через satori, хотим ловить
-  регрессии. Скриншотное сравнение? Сравнение SVG-путей? Что делают другие.
-- Инстансирование Unbounded через `fonttools` — рабочий скрипт и проверка, что в
-  результате нет `fvar` (в прошлый раз нашли команду, но не сквозной пример с
-  рендером).
+- How others do it: shared JSON fixture vectors that both sides run? Property-based
+  tests with the same seed? Generating one implementation from the other?
+- Are there tools that run one set of cases on both Rust and TS?
+- Rounding: `bigint` in TS and `u64` in Rust behave the same on floor division,
+  so where does it break at the edges (zero, max, odd fees)?
+- How divergence is caught **before** deploy, not after.
 
----
-
-## 6. Напоминания — перенесено, всё ещё открыто
-
-Из первого брифа: `.ics` на iOS Safari без гарантий, Web Push на iOS требует
-add-to-home-screen, доставляемость не установлена.
-
-**Вопросы:**
-
-- Что реально работает **без** нативного приложения, чтобы достать человека в момент
-  дедлайна. Email — это база, но открываемость какая.
-- Управляемые планировщики одноразовых колбэков (EventBridge Scheduler, Cloud Tasks,
-  QStash) — цена на наших объёмах, отмена задачи, идемпотентность.
-- Кто как решает «напомнить обоим за час до дедлайна», когда пользователей десятки
-  тысяч, а не миллионы.
+**What to bring:** a concrete working technique with a code example. Even a simple one,
+"a JSON with 200 vectors read by both tests", is fine if it's clear how it's built.
 
 ---
 
-## 7. Что делать, когда придёт первый скандал
+## 4. The funnel "reel → link → first bet"
 
-Не исследовано вообще, и это то, что убивает продукты про деньги между людьми.
+Never researched, and it's the only growth channel. `docs/01` analyzed
+comments under reels, which is about demand, not about the mechanics of the click-through.
 
-**Вопросы:**
+**Questions:**
 
-- Какая нагрузка на поддержку у Forfeit, Beeminder и подобных: что пишут люди, как
-  часто, что отвечают. Из отзывов в сторах, реддита, твиттера.
-- **Формулировки отказа.** «Судья решил не в твою пользу» — как это говорят, чтобы
-  человек не пошёл писать в банк или в сторы.
-- Возвраты и чарджбэки: что делают, когда человек требует деньги назад после
-  проигрыша. У нас USDC, чарджбэка нет — но требование будет.
-- Что пишут в интерфейсе **до** того, как человек внесёт деньги, чтобы потом было на
-  что сослаться. Не юридический текст — экранные формулировки.
-- Абьюз: сговор двоих против третьего, спор с самим собой с двух аккаунтов, судья-
-  сообщник. Кто с этим сталкивался и что делал.
+- Instagram and links in 2026: what's clickable in a reel, in stories, in a profile,
+  in comments. Does external-link use cut reach?
+- **Instagram's in-app browser**: what breaks in practice: cookies,
+  localStorage, returning to the tab, "open in Safari". Collect a list of known
+  pitfalls, not guesses.
+- How to get from the webview into a normal browser without losing state.
+- What actually works for products with the same shape: link → product → inviting a
+  second person. Especially the **invite**: the second half of our funnel is when a
+  person sends a link to a friend in a DM.
+- Which metrics to measure from day one, and typical conversion rates, so we can tell
+  whether ours are bad or normal.
 
-**Что принести:** реальные жалобы пользователей (скриншоты, цитаты из отзывов) и то,
-как продукт на них отвечал. Это ценнее любой теории.
-
----
-
-## 8. Мелочи, которые дешевле узнать заранее
-
-- **Хранение секретных ссылок дайджестом** — примеры настоящих SQL-политик, а не
-  рекомендаций. В прошлый раз не нашли ни одной реальной реализации под наш случай.
-- **`GET` читает, `POST` тратит** — есть ли живые примеры, где приглашение защищено
-  именно так, и как выглядит промежуточный экран подтверждения.
-- **Rate limiting** на serverless без своего Redis: что используют на Vercel.
-- **Аналитика**, которая не тащит персональные данные: у нас типизированные события,
-  ни одно не несёт текст спора, ник или сумму. Куда их складывать, чтобы это осталось
-  правдой.
+**What to bring:** a list of known Instagram webview link problems with links to
+primary sources, and a breakdown of two or three products growing through "send a link to a friend".
 
 ---
 
-## Как отдавать результат
+## 5. The chat card: finish what didn't close
 
-Как в прошлый раз, и в прошлый раз это сработало отлично:
+From the first brief, message sizes and cache behavior remain unresolved for messengers. Plus a
+new question appeared: how to test it.
 
-1. **Ссылка плюс строка «что тут полезно».** Дальше я прочитаю сам.
-2. **Прямые цитаты там, где вопрос фактический** — комиссии on-ramp, лимиты, версии
-   iOS. Пересказ хуже цитаты.
-3. **Архивируй неудачи.** Четырнадцать 403-х от StickK в прошлом прогоне были
-   полезнее, чем был бы придуманный пересказ: я сразу увидел, чему можно верить.
-4. **Отрицательный результат — результат.** «Нет ни одного on-ramp, который отдаёт
-   $25 в USDC на Solana без KYC» меняет продукт сильнее, чем три найденных.
+**Questions:**
+
+- Telegram, WhatsApp, Instagram DM, iMessage: size, weight, formats, cache lifetime,
+  whether there's any way to invalidate. Last time we didn't find it, so try through
+  bot developers and discussions, not only official docs.
+- **How to test the OG image in CI.** We render via satori and want to catch
+  regressions. Screenshot comparison? SVG path comparison? What do others do?
+- Instancing Unbounded via `fonttools`: a working script and a check that the
+  result has no `fvar` (last time we found the command, but not an end-to-end example
+  with rendering).
+
+---
+
+## 6. Reminders: carried over, still open
+
+From the first brief: `.ics` on iOS Safari with no guarantees, Web Push on iOS requires
+add-to-home-screen, deliverability not established.
+
+**Questions:**
+
+- What actually works **without** a native app to reach a person at the moment of the
+  deadline. Email is the baseline, but what's the open rate?
+- Managed schedulers for one-off callbacks (EventBridge Scheduler, Cloud Tasks,
+  QStash): price at our volumes, task cancellation, idempotency.
+- How others solve "remind both people an hour before the deadline" when there are tens
+  of thousands of users, not millions.
+
+---
+
+## 7. What to do when the first scandal arrives
+
+Not researched at all, and it's what kills products about money between people.
+
+**Questions:**
+
+- What support load Forfeit, Beeminder and similar have: what people write, how
+  often, what gets answered. From store reviews, Reddit, Twitter.
+- **Wording for a loss.** "The referee ruled against you": how it's said so that the
+  person doesn't go complain to their bank or the stores.
+- Refunds and chargebacks: what they do when a person demands money back after
+  losing. We use USDC, there's no chargeback, but the demand will come.
+- What the interface says **before** a person deposits money, so there's something to
+  point to afterwards. Not legal text, on-screen wording.
+- Abuse: two people colluding against a third, a bet with yourself from two accounts, an
+  accomplice referee. Who ran into this and what they did.
+
+**What to bring:** real user complaints (screenshots, quotes from reviews) and how
+the product answered them. That is worth more than any theory.
+
+---
+
+## 8. Small things that are cheaper to learn in advance
+
+- **Storing secret links as a digest**: examples of real SQL policies, not
+  recommendations. Last time we found no real implementation for our case.
+- **`GET` reads, `POST` spends**: are there live examples where an invite is protected
+  exactly this way, and what the intermediate confirmation screen looks like.
+- **Rate limiting** on serverless without our own Redis: what people use on Vercel.
+- **Analytics** that doesn't drag in personal data: we have typed events,
+  none of which carries the bet text, a nickname or an amount. Where to put them so that
+  this stays true.
+
+---
+
+## How to hand over results
+
+Same as last time, and last time it worked great:
+
+1. **A link plus a "what's useful here" line.** I'll read the rest myself.
+2. **Direct quotes where the question is factual**: on-ramp fees, limits, iOS
+   versions. A paraphrase is worse than a quote.
+3. **Archive the failures.** Fourteen 403s from StickK in the last run were
+   more useful than an invented summary would have been: I immediately saw what could be trusted.
+4. **A negative result is a result.** "There is no on-ramp that delivers $25 in USDC
+   on Solana without KYC" changes the product more than three found ones.

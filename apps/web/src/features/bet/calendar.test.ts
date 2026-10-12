@@ -29,7 +29,7 @@ describe('foldLine', () => {
   });
 
   it('never splits a multi-byte character', () => {
-    const line = `SUMMARY:${'пробежка '.repeat(20)}`;
+    const line = `SUMMARY:${'run 🏃 '.repeat(20)}`;
     const folded = foldLine(line);
     for (const physical of folded.split('\r\n')) {
       expect(octets(physical)).toBeLessThanOrEqual(75);

@@ -144,7 +144,7 @@ So the list uses a compressed variant, `BetRow`, added to `packages/ui/src/patte
 ```
 ┌─────────────────────────────────────────────┐
 │▌ BET #BXK4T9 · YOU'RE THE REFEREE           │  label-caps-sm, ink-secondary
-│▌ Ты не пробежишь 10 км до воскресенья       │  Unbounded heading-md, 2-line clamp,
+│▌ You won't run 10 km by Sunday              │  Unbounded heading-md, 2-line clamp,
 │▌                                            │  text-wrap: pretty
 │▌ ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄  │  1px dashed hairline-strong
 │▌ 20 USDC              47h left to confirm   │  body-sm / value
@@ -323,7 +323,7 @@ creator and every opponent.
   1. **At creation** — the receipt. Contains the link, the terms, the deadline, and the
      `.ics` attachment. _This message is the durable "my bets" screen for everyone who never
      opens the site again, which is why it ships even if nobody reads the other two._
-  2. **On accept** — "Даня is in." The one email people actually want; it is also the proof
+  2. **On accept** — "Dan is in." The one email people actually want; it is also the proof
      the loop closed.
   3. **Deadline − 2 h** — "Who won?" with one link.
 

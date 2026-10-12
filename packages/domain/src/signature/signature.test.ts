@@ -100,7 +100,7 @@ describe('isSignatureMeaningful', () => {
 
 describe('typedSignature', () => {
   it('trims surrounding space', () => {
-    expect(typedSignature('  Дима  ').name).toBe('Дима');
+    expect(typedSignature('  Dima  ').name).toBe('Dima');
   });
 
   it('caps the length rather than letting a paragraph through', () => {

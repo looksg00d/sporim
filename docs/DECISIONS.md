@@ -1,351 +1,364 @@
-# Журнал решений
+# Decision log
 
-Хронологический лог: **что решили, почему, что это изменило**. Дописывается сверху вниз,
-записи не переписываются задним числом — если решение отменили, добавляется новая запись со
-ссылкой на старую.
+A chronological log: **what we decided, why, and what it changed**. It is appended top to bottom,
+entries are never rewritten after the fact. If a decision is reversed, a new entry is added that
+links to the old one.
 
-Зачем отдельный файл: спека (`05`) говорит, как продукт устроен **сейчас**, план (`09`) — что
-делать дальше, а этот файл отвечает на вопрос «почему так, а не иначе», который через месяц
-не восстанавливается ни из кода, ни из гита.
+Why a separate file: the spec (`05`) says how the product works **now**, the plan (`09`) says what
+to do next, and this file answers the question "why this way and not another", which a month later
+cannot be recovered from the code or from git.
 
-Формат записи: дата · решение · почему · что изменилось в коде.
+Entry format: date · decision · why · what changed in the code.
 
 ---
 
 ## 2026-09-24
 
-### SOL за всё платит сервер, пользователю нужен только USDC (план, решение D2)
+### The server pays for all SOL, the user only needs USDC (plan, decision D2)
 
-**Решение (твоё, «делай да все» на рекомендацию).** Комиссию сети и аренду аккаунтов спора
-платит серверный ключ. `create_bet` принимает отдельного `payer`, адрес пишется в ставку как
-`rent_payer`, и каждый финальный переход закрывает хранилище и аккаунт спора обратно на него.
+**Decision (yours, "do it all" on the recommendation).** The network fee and the rent for the bet
+accounts are paid by the server key. `create_bet` takes a separate `payer`, the address is written
+into the bet as `rent_payer`, and every final transition closes the vault and the bet account back
+to it.
 
-**Почему.** Встроенный кошелёк Privy держит USDC и ноль SOL: без этого человек не смог бы
-создать спор вовсе. А разбор scale-game показал, что аренда (~$0.4–0.5) никогда не
-возвращалась — при комиссии 3 цента со ставки в 1 USDC. Теперь она возвращается до лампорта,
-и это под тестом на каждом из шести финальных путей.
+**Why.** The built-in Privy wallet holds USDC and zero SOL: without this, a person could not
+create a bet at all. And the scale-game review showed that the rent (~$0.4–0.5) was never
+returned, against a fee of 3 cents on a 1 USDC stake. Now it is returned to the lamport, and
+that is covered by a test on each of the six final paths.
 
-**Цена.** Структура аккаунта `Bet` изменилась: споры от деплоя 12 сентября программа больше не
-читает. Девнет, тестовые токены — согласовано.
+**Cost.** The `Bet` account layout changed: the program no longer reads bets from the 12 September
+deploy. Devnet, test tokens, agreed.
 
-### Тестовый токен вместо девнет-USDC (решение D3)
+### A test token instead of devnet USDC (decision D3)
 
-**Решение.** Свой 6-знаковый минт `2SmKoxP42D8sj4rpiXwxQ1L6s2PswA7XuaLpVw74u6cc`, выпускает
-admin. Адрес и параметры — в `packages/chain/devnet.json`. Фаусет Circle ограничен на кошелёк
-и встал бы между каждым тестером и первым спором; программе минт безразличен — он хранится в
-ставке.
+**Decision.** Our own 6-decimal mint `2SmKoxP42D8sj4rpiXwxQ1L6s2PswA7XuaLpVw74u6cc`, issued by
+the admin. The address and parameters are in `packages/chain/devnet.json`. The Circle faucet is
+limited per wallet and would stand between every tester and their first bet; the program does
+not care about the mint, since it is stored in the bet.
 
-### Выход из каждого состояния на чейне и деплой
+### An exit from every on-chain state, and the deploy
 
-**Что сделано.** `refund_expired` (брошенный спор — любой возвращает обе ставки через 14 дней),
-`dispute_claim` (без судьи — возврат обоим сразу), все инструкции спрашивают `rules.rs`, а
-`rules.rs` сверяется с доменом через `transitions.v1.json`. По дороге векторы нашли три
-расхождения: не было `CLAIM_GRACE_SECONDS` и выхода для брошенного спора, заявку принимали
-после 14 дней, а подтверждение — после конца 48-часового окна.
+**What was done.** `refund_expired` (an abandoned bet: anyone refunds both stakes after 14 days),
+`dispute_claim` (no referee: both get an immediate refund), every instruction asks `rules.rs`,
+and `rules.rs` is checked against the domain through `transitions.v1.json`. Along the way the
+vectors found three mismatches: there was no `CLAIM_GRACE_SECONDS` and no exit for an abandoned
+bet, a claim was accepted after 14 days, and a confirmation after the 48-hour window had ended.
 
-**Деплой.** Тот же адрес `EkfT…`, слот 503447697, программа расширена до 320 КБ (~0.35 SOL
-навсегда). Проверено настоящими транзакциями через сгенерированный клиент
-(`packages/chain/scripts/devnet-smoke.ts`): создатель с нулём SOL создаёт спор, отмена закрывает
-оба аккаунта, admin тратит только 0.00002 SOL комиссии.
+**Deploy.** The same address `EkfT…`, slot 503447697, program extended to 320 KB (~0.35 SOL,
+permanent). Verified with real transactions through the generated client
+(`packages/chain/scripts/devnet-smoke.ts`): a creator with zero SOL creates a bet, a cancel closes
+both accounts, and the admin spends only 0.00002 SOL in fees.
 
-**Ловушка.** `anchor idl build` молча переписал `declare_id!` и `Anchor.toml` на случайный ключ
-из каталога сборки. Поймано до коммита; `packages/program/scripts/idl.sh` теперь сохраняет оба
-файла и возвращает их.
+**Trap.** `anchor idl build` silently rewrote `declare_id!` and `Anchor.toml` to a random key
+from the build directory. Caught before the commit; `packages/program/scripts/idl.sh` now saves
+both files and restores them.
 
-**Не сделано.** Судья на чейне — ждёт решения, как ему платить (D1). Сайт программу ещё не
-видит: это фазы D–E плана.
+**Not done.** The referee on chain is waiting on a decision about how to pay them (D1). The site
+does not see the program yet: that is phases D–E of the plan.
 
 ---
 
 ## 2026-09-17
 
-### Несогласие без судьи — сразу возврат обоим, без комиссии
+### Disagreement without a referee means an immediate refund to both, no fee
 
-**Решение (твоё).** Если судьи нет и вторая сторона нажала «не согласен», ставка сразу
-переходит в `refunded`: каждый получает свою ставку целиком, комиссии нет. Ждать некого,
-поэтому и таймаута нет. Молчание 48 часов по-прежнему оставляет заявку в силе. Если судья
-назван — подтвердил он роль или нет — всё как было: спор уходит к нему.
+**Decision (yours).** If there is no referee and the other side pressed "disagree", the bet goes
+straight to `refunded`: each side gets their whole stake back, with no fee. There is nobody to
+wait for, so there is no timeout either. Silence for 48 hours still leaves the claim standing. If a
+referee is named, whether or not they confirmed the role, everything is as before: the dispute
+goes to them.
 
-**Почему.** До этого `claimedActions` предлагал спор только при судье («without a referee the
-timeout does the work»). Сторона, получившая ложную заявку, могла согласиться или ждать, а
-ожидание отдавало банк тому, кто заявил первым. Спека (`docs/05`, «Судьи нет … → refund
-обоим») это уже обещала — код отставал. Ревью 16 сентября назвало это критичным: вместе с
-открытым `accept_bet` на чейне выходило «бот принимает чужую ставку, первым заявляет победу и
-забирает банк».
+**Why.** Until now `claimedActions` offered a dispute only when there was a referee ("without a
+referee the timeout does the work"). The side that received a false claim could agree or wait,
+and waiting handed the pot to whoever claimed first. The spec (`docs/05`, "No referee … → refund
+to both") already promised this, and the code lagged behind. The 16 September review called it
+critical: together with the open `accept_bet` on chain it amounted to "a bot takes someone else's
+bet, claims the win first, and collects the pot".
 
-**Чем платим.** Без судьи проигравший всегда может бесплатно сказать «не согласен» и вернуть
-свою ставку. Выиграть такой спор можно, только если проигравший сам подтвердит результат —
-спор без судьи становится спором на честность, и экран выбора судьи говорит это прямо. Если
-воронка покажет слишком много таких возвратов, это довод подталкивать к судье, а не
-возвращать залог.
+**What we pay for it.** Without a referee, the loser can always say "disagree" for free and get
+their stake back. Such a bet can only be won if the loser confirms the result themselves, so a
+bet without a referee becomes a bet on honesty, and the referee selection screen says so
+plainly. If the funnel shows too many of these refunds, that is a reason to push people toward
+a referee, not to take the stake back.
 
-**Что изменилось в коде.**
+**What changed in the code.**
 
-- `nextState(action, bet)` теперь берёт ставку: `disputeClaim` ведёт в `disputed` при
-  названном судье и в `refunded` без него.
-- `claimedActions` предлагает `disputeClaim` всегда.
-- `openDispute` без судьи не пишет строку в `disputes`: там обязателен `referee_deadline_at`,
-  а решать некому. След остаётся в `bet_events` — `disputeClaim`, `claimed → refunded` и кто
-  возразил. Миграция не понадобилась.
-- Копирайт: `TRUST_COPY.disputingMutual`, `timeline`, подсказка «We both confirm» на экране
-  судьи, `whatHappensNext`.
-- Программа (`packages/program`) спора пока не знает вовсе. `dispute_claim` следующего слайса
-  обязан повторить это правило: без судьи — возврат, без комиссии.
+- `nextState(action, bet)` now takes the bet: `disputeClaim` leads to `disputed` when a referee
+  is named and to `refunded` when not.
+- `claimedActions` always offers `disputeClaim`.
+- `openDispute` without a referee does not write a row to `disputes`: `referee_deadline_at` is
+  required there, and there is nobody to decide. The trail stays in `bet_events`:
+  `disputeClaim`, `claimed → refunded`, and who objected. No migration was needed.
+- Copy: `TRUST_COPY.disputingMutual`, `timeline`, the "We both confirm" hint on the referee
+  screen, `whatHappensNext`.
+- The program (`packages/program`) does not know about disputes at all yet. `dispute_claim` in
+  the next slice must repeat this rule: no referee means a refund, no fee.
 
-### Паритет денег: общие векторы, которые читают оба языка
+### Money parity: shared vectors that both languages read
 
-**Решение.** Числа расчёта описаны один раз — в `packages/domain/src/money/vectors.ts` — и
-генерируются из самого `calculateSettlement` в `packages/domain/test-vectors/settlement.v1.json`.
-TypeScript держит файл снапшотом (`pnpm --filter @sporim/domain vectors` перегенерирует),
-Rust читает тот же файл через `include_str!` и сверяет свою арифметику. Ни одна сторона не может
-сдвинуть числа в одиночку.
+**Decision.** The settlement numbers are described once, in
+`packages/domain/src/money/vectors.ts`, and generated from `calculateSettlement` itself into
+`packages/domain/test-vectors/settlement.v1.json`. TypeScript keeps the file as a snapshot
+(`pnpm --filter @sporim/domain vectors` regenerates it), Rust reads the same file through
+`include_str!` and checks its own arithmetic against it. Neither side can move the numbers alone.
 
-**Почему.** `docs/09` (T5.11) называл этот тест самым важным в репозитории, и его не было.
-Совпадение ончейна с доменом было измерено один раз руками, на одном прогоне в сентябре: это
-факт о том дне, а не свойство кода. Две реализации одного правила расходятся ровно тогда, когда
-кто-то чинит одну из них, и расхождение незаметно — обе продолжают проходить свои тесты.
+**Why.** `docs/09` (T5.11) called this test the most important one in the repository, and it did
+not exist. The on-chain match with the domain had been measured once by hand, on one run in
+September: that is a fact about that day, not a property of the code. Two implementations of one
+rule drift apart exactly when someone fixes one of them, and the drift is invisible, since both
+keep passing their own tests.
 
-**Что в векторах.** 16 случаев: обе стороны Bet, ничья, возврат, границы MIN и MAX, и главное —
-округление: 33 и 34 базовые единицы по обе стороны первой целой единицы комиссии, 3333 и 3334 —
-сотой. Реализация, которая округляет в другую сторону, проходит любой тест «на 20 USDC» и падает
-на этих. Случаи, которых первый слайс не умеет (Commit, доля судьи, явный возврат), помечены
-`onChain: false` и пропускаются Rust-тестом — это контракт для следующего слайса, записанный до
-того, как он написан.
+**What is in the vectors.** 16 cases: both sides of a Bet, a draw, a refund, the MIN and MAX
+boundaries, and above all rounding: 33 and 34 base units on either side of the first whole unit
+of fee, 3333 and 3334 for the hundredth. An implementation that rounds the other way passes any
+"20 USDC" test and fails on these. Cases the first slice cannot do (Commit, the referee share, an
+explicit refund) are marked `onChain: false` and skipped by the Rust test. That is a contract for
+the next slice, written down before it is built.
 
-**Проверено обеими сторонами.** Испортил одно число в файле — Rust упал на нужном кейсе; вернул —
-прошёл. Иначе это был бы тест, который читает файл и ничего с ним не делает.
+**Verified on both sides.** I corrupted one number in the file and Rust failed on the right case;
+I restored it and it passed. Otherwise this would be a test that reads a file and does nothing
+with it.
 
-**Заодно в CI появился Rust.** Отдельная нога `cargo test --test parity` — без солановского
-тулчейна, обычным стейблом. Тесты уровня инструкций (LiteSVM) требуют собранной программы и
-идут следующим шагом.
+**Rust arrives in CI too.** A separate leg, `cargo test --test parity`, with no Solana toolchain,
+on plain stable. Instruction-level tests (LiteSVM) need the built program and come next.
 
-**Цена.** Файл надо перегенерировать при каждом осознанном изменении правил денег, иначе падает
-TS-тест. Это и есть механизм: изменение правил теперь нельзя сделать молча в одном языке.
+**Cost.** The file has to be regenerated on every deliberate change to the money rules, or the TS
+test fails. That is the mechanism: a change to the rules can no longer be made silently in one
+language.
 
-### Один писатель переходов: `applyTransition` с проверкой состояния
+### One writer of transitions: `applyTransition` with a state check
 
-**Решение.** Состояние ставки меняется ровно в одном месте — `applyTransition` в
-`bets.repo.ts`. Она пишет `update bets set … where id = $1 and state = $from`, и если строка не
-совпала, бросает `TransitionConflict`. Исключение, а не `Result`: к этому моменту уже могли быть
-записаны дочерние строки (заявка, спор, участник), и они верны только если переход состоялся —
-`err` их бы закоммитил, потому что `inContext` спокойно доходит до COMMIT. Бросок откатывает
-транзакцию целиком, а `asConflict` снаружи превращает его в обычный отказ `CONFLICT`.
+**Decision.** A bet's state changes in exactly one place, `applyTransition` in `bets.repo.ts`. It
+runs `update bets set … where id = $1 and state = $from`, and if the row did not match, it throws
+`TransitionConflict`. An exception, not a `Result`: by that point child rows may already have
+been written (a claim, a dispute, a participant), and they are only valid if the transition
+happened. An `err` would have committed them, because `inContext` calmly reaches COMMIT. The throw
+rolls the whole transaction back, and `asConflict` outside turns it into a plain `CONFLICT`
+refusal.
 
-**Почему.** Один и тот же ход писали четыре функции: `recordAction`, `submitClaim`,
-`openDispute` и `acceptBet`. Каждая делала одно и то же втроём — проверить право, записать
-состояние, записать событие, — и ни одна не проверяла, что состояние всё ещё то, которое она
-прочитала в `authorize`. Двое, нажавшие permissionless-таймаут одновременно, оба проходили
-проверку, оба писали, и в журнале появлялись две строки на один переход. Пока чейн — заглушка,
-это лишняя строка аудита; с подключённым чейном это две транзакции.
+**Why.** The same move was written by four functions: `recordAction`, `submitClaim`,
+`openDispute` and `acceptBet`. Each did the same three things (check the right, write the state,
+write the event), and none checked that the state was still the one it had read in `authorize`.
+Two people pressing the permissionless timeout at the same time both passed the check, both
+wrote, and the log got two rows for one transition. While the chain is a stub, that is a spare
+audit row; with the chain connected it is two transactions.
 
-**Что это даёт, кроме починки гонки.** Поля для чейна (подпись, слот, статус отправки)
-добавятся в одном месте вместо четырёх. Дифференциальный тест «домен против программы»
-получает одну точку входа. И правило «каждый ход = проверка, переход, событие» больше нельзя
-случайно нарушить в новой функции: её просто неоткуда написать.
+**What this gives besides fixing the race.** The chain fields (signature, slot, send status) get
+added in one place instead of four. The differential "domain versus program" test gets a single
+entry point. And the rule "every move = check, transition, event" can no longer be broken by
+accident in a new function: there is nowhere to write one from.
 
-**Заодно.** Проигравший гонку за место оппонента раньше получал исключение от уникального
-ключа `participants_one_row_per_role`, а не отказ. Теперь `asConflict` переводит и его в тот же
-`CONFLICT`: обе статьи говорят одно и то же — «кто-то успел раньше».
+**Also.** The loser of the race for the opponent's seat used to get an exception from the unique
+key `participants_one_row_per_role` rather than a refusal. Now `asConflict` translates that too
+into the same `CONFLICT`: both cases say the same thing, "someone got there first".
 
-**Чего это решение не делает.** Остальные каскады из того же разбора не тронуты: таблица
-«состояние → срок и исход по умолчанию» (она же закрыла бы дыру `refund_expired` структурно),
-участник как строка вместо четырёх полей, и одна обёртка контекста вместо четырёх. Политики
-RLS трогать не планирую: `0004` намеренно развёл капабилити, и одна общая функция сложила бы
-их в одну корзину.
+**What this decision does not do.** The other cascades from the same review are untouched: a
+table "state → deadline and default outcome" (which would also close the `refund_expired` hole
+structurally), a participant as a row instead of four fields, and one context wrapper instead of
+four. I do not plan to touch the RLS policies: `0004` deliberately separated the capabilities,
+and one shared function would put them in a single bucket.
 
-### Соперника больше не называют при создании
+### The opponent is no longer named at creation
 
-**Решение (твоё).** Поле «Who are you betting? (optional)» убрано из визарда. Кто принял
-ссылку, тот и соперник, под своим именем: текстовая подпись при принятии или имя из профиля.
+**Decision (yours).** The "Who are you betting? (optional)" field is removed from the wizard.
+Whoever accepts the link is the opponent, under their own name: a text signature at acceptance or
+the name from their profile.
 
-**Почему.** Имя ни к чему не было привязано: принять ставку мог любой со ссылкой, а карточка
-создавала впечатление, что только «Даня». Мы называли человека до того, как он появлялся, —
-разбор аналогий и обзор продуктов в
-[артефакте](https://claude.ai/artifact/FWKV1XY5JsGM5YbLJCvtqr). Ни один продукт не опирается
-на имя, введённое без привязки; ближе всего к нам Telegram Wallet и чеки Crypto Bot — ссылка
-доставляет, а забирает адресат.
+**Why.** The name was not tied to anything: anyone with the link could accept the bet, while the
+card gave the impression that only "Dan" could. We were naming a person before they showed up.
+The analysis of analogies and the product survey are in the
+[artifact](https://claude.ai/artifact/FWKV1XY5JsGM5YbLJCvtqr). No product relies on a name typed in
+without binding; the closest to us are Telegram Wallet and Crypto Bot checks, where the link
+delivers and the recipient claims.
 
-**Что изменилось в коде.**
+**What changed in the code.**
 
-- `opponentRef` ушёл из `BetDraft`, схем, хранилища черновика, формы отправки и `create-bet`;
-  ставка создаётся с `opponent: null`.
-- Хеш условий: строка `opponent` осталась и всегда `null`. Формат `sporim.commitment.v1` не
-  меняется, старые хеши сверяются как раньше; имя от старого клиента схема отбрасывает.
-- Черновик, сохранённый старой версией, читается: лишний ключ отбрасывается.
-- Проверка «судья — не названный соперник» ушла вместе с полем. Настоящая защита — на уровне
-  аккаунтов: держатель одной ссылки не может взять другую роль (`0004`, `0011`).
-- На экране судьи поле помечено необязательным в режиме «We both confirm», а под ним — что
-  будет, если судью не назвать.
+- `opponentRef` is gone from `BetDraft`, the schemas, the draft storage, the submit form and
+  `create-bet`; the bet is created with `opponent: null`.
+- Terms hash: the `opponent` line stays and is always `null`. The `sporim.commitment.v1` format
+  does not change, old hashes verify as before; a name from an old client is dropped by the schema.
+- A draft saved by an older version still reads: the extra key is dropped.
+- The check "the referee is not the named opponent" went away with the field. The real protection
+  is at the account level: the holder of one link cannot take another role (`0004`, `0011`).
+- On the referee screen the field is marked optional in "We both confirm" mode, with a note below
+  it on what happens if no referee is named.
 
-**Что дальше.** Имя принявшего есть, только если он подписался текстом или у профиля есть
-имя, — отсюда ник при первом входе. Затем «с кем уже спорил» и адресные споры, и обращение
-«Миша, спорим?» в тексте сообщения на экране отправки. Колонка `participants.handle` остаётся.
+**What next.** The acceptor's name exists only if they signed with text or their profile has a
+name, hence a nickname at first sign-in. Then "who you have bet with before" and addressed bets,
+and a greeting like "Misha, want to bet?" in the message text on the send screen. The
+`participants.handle` column stays.
 
-### Подпись сервера при приёме ставки — не делаем
+### Server signature on accepting a bet: not doing it
 
-**Решение (твоё).** `accept_bet` на чейне остаётся открытым: принять ставку может любой
-кошелёк, пока она `Open`. Гейт из подписи серверного аттестатора, который предлагало ревью 16
-сентября, не вводим — чем проще, тем лучше.
+**Decision (yours).** `accept_bet` on chain stays open: any wallet can accept a bet while it is
+`Open`. We are not introducing the server attestor signature gate proposed by the 16 September
+review: the simpler, the better.
 
-**Почему это не дыра в деньгах.** Правило выше убирает у бота денежный мотив. Бот, занявший
-чужую ставку, кладёт свои деньги. Заявит «я выиграл» — создатель жмёт «не согласен», и оба
-забирают ставки назад; с судьёй бот свою ставку проигрывает. Остаётся не кража, а мусор:
-чужак может занять место, которое создатель готовил для друга.
+**Why this is not a hole in the money.** The rule above removes the money motive for a bot. A bot
+that takes someone else's bet puts up its own money. If it claims "I won", the creator presses
+"disagree" and both take their stakes back; with a referee the bot loses its stake. What remains
+is not theft but junk: a stranger can take the seat the creator was keeping for a friend.
 
-**Что остаётся открытым.**
+**What remains open.**
 
-- Создатель, который 48 часов не заглядывает в спор, теряет банк при ложной заявке — ровно
-  как и с лживым другом. Это закрывают `.ics` и напоминания, а не подпись.
-- Пока программа не умеет `dispute_claim`, сценарий с ботом на чейне всё ещё работает. Поэтому
-  `dispute_claim` — первое, что делает следующий слайс программы.
-- На девнете денег нет. Перед mainnet вернуться к вопросу, если захват мест станет заметен;
-  самый дешёвый вариант тогда — подпись сервера, раз сервер и так собирает транзакции.
+- A creator who does not look at the bet for 48 hours loses the pot to a false claim, exactly
+  as with a lying friend. That is closed by `.ics` and reminders, not by a signature.
+- Until the program can do `dispute_claim`, the scenario with a bot on chain still works. That is
+  why `dispute_claim` is the first thing the next program slice does.
+- There is no money on devnet. Before mainnet, return to the question if seat grabbing becomes
+  noticeable; the cheapest option then is a server signature, since the server already builds the
+  transactions.
 
 ---
 
 ## 2026-09-12
 
-### Первый слайс эскроу на Anchor — только формат Bet, живой на девнете
+### First escrow slice on Anchor: only the Bet format, live on devnet
 
-**Решение.** `packages/program` — программа `sporim`, семь инструкций:
+**Decision.** `packages/program` is the `sporim` program, seven instructions:
 `create_bet`/`accept_bet`/`cancel_bet`/`expire_unaccepted`/`submit_claim`/`confirm_claim`/
-`settle_uncontested`. Только формат **Bet** — симметричные ставки, взаимное подтверждение,
-permissionless-таймауты. Ни судьи, ни спора, ни `Commit`/бенефициара на чейне пока нет.
-Задеплоена на девнет (`EkfT8PTE7QShwtK6F7NEDgC2M3i4cGnLZhurULPVtDP2`) и прогнана настоящими
-транзакциями: `create_bet` → `accept_bet` → `submit_claim` → `confirm_claim`. Итог совпал с
-`calculateSettlement` по битам — пот 20, комиссия 0.3 (3% с чистого выигрыша 10), победителю
-19.7, казне 0.3, vault пуст.
+`settle_uncontested`. Only the **Bet** format: symmetric stakes, mutual confirmation,
+permissionless timeouts. No referee, no dispute, and no `Commit`/beneficiary on chain yet.
+Deployed to devnet (`EkfT8PTE7QShwtK6F7NEDgC2M3i4cGnLZhurULPVtDP2`) and run through with real
+transactions: `create_bet` → `accept_bet` → `submit_claim` → `confirm_claim`. The result matched
+`calculateSettlement` bit for bit: pot 20, fee 0.3 (3% of the net win of 10), winner 19.7,
+treasury 0.3, vault empty.
 
-**Почему без `Config`-аккаунта.** `docs/09` §2.5 проектировал `Config` с `admin`/`treasury`/
-`fee_bps`/`paused` с первого дня. Отложено: у нас пока нет причины **менять** комиссию или
-казну без апгрейда программы, а `packages/domain/src/constants.ts` уже трактует `FEE_BPS` как
-литерал, а не строку в таблице. Комиссия (300 bps) и адрес казны зашиты константами в
-`constants.rs` — тем же приёмом, каким домен избежал мутабельной конфигурации. `Config` —
-первое, что добавляет следующий слайс, когда появится настоящая причина.
+**Why no `Config` account.** `docs/09` §2.5 designed a `Config` with `admin`/`treasury`/
+`fee_bps`/`paused` from day one. Deferred: we have no reason yet to **change** the fee or the
+treasury without upgrading the program, and `packages/domain/src/constants.ts` already treats
+`FEE_BPS` as a literal, not a table row. The fee (300 bps) and the treasury address are hard-coded
+as constants in `constants.rs`, the same way the domain avoided mutable configuration. `Config` is
+the first thing the next slice adds, when there is a real reason.
 
-**Почему vault — не отдельный PDA.** `docs/09` держал `bet_pda` и `vault_pda` раздельно.
-Здесь vault — обычный ATA, чей `authority` — сам аккаунт ставки: одним PDA меньше, подписывать
-переводы может тот же `invoke_signed` с сидами ставки. Причины заводить второй PDA не нашлось.
+**Why the vault is not a separate PDA.** `docs/09` kept `bet_pda` and `vault_pda` apart. Here the
+vault is a plain ATA whose `authority` is the bet account itself: one PDA fewer, and the same
+`invoke_signed` with the bet's seeds can sign the transfers. No reason to add a second PDA was
+found.
 
-**Почему без Rust-тестов (LiteSVM).** `docs/09` T5.11 называет three-way parity-тест
-(TS/Rust/mock) «самым важным тестом в репозитории». Здесь его нет — корректность проверена
-вручную реальными транзакциями на девнете с проверкой чисел построчно, а не тестом, который
-останется и будет перепроверять это на каждый пуш. Долг, не забытьё: следующий слайс либо
-пишет LiteSVM-тесты для уже сделанных семи инструкций, либо явно откладывает это ещё раз.
+**Why no Rust tests (LiteSVM).** `docs/09` T5.11 calls the three-way parity test (TS/Rust/mock)
+"the most important test in the repository". It is not here: correctness was checked by hand with
+real devnet transactions, comparing the numbers line by line, rather than by a test that stays
+and rechecks it on every push. This is debt, not forgetfulness: the next slice either writes
+LiteSVM tests for the seven instructions already built, or explicitly postpones it again.
 
-**Тестировал на своём токене, не на девнет-USDC.** Механика эскроу (переводы, PDA, ATA) не
-зависит от того, какой это SPL-минт — `mint` хранится в самой ставке, а не зашит в программу.
-Гонять настоящий девнет-USDC-фаусет ради проверки этого было бы отдельной задачей, не связанной
-с тем, работает ли эскроу.
+**Tested on our own token, not devnet USDC.** The escrow mechanics (transfers, PDAs, ATAs) do not
+depend on which SPL mint it is: `mint` is stored in the bet itself, not hard-coded in the
+program. Running the real devnet USDC faucet just to check this would have been a separate task,
+unrelated to whether the escrow works.
 
-**Тулчейн — в WSL2, не на голом Windows.** `docs/09` R6 предсказывал ровно это: Anchor на
-Windows не собирается. Rust, Solana CLI и Anchor CLI стоят в Ubuntu-24.04 под WSL2. Anchor CLI
-встал прекомпилированным бинарником с `github.com/otter-sec/anchor` — репозиторий Anchor
-переехал туда с `coral-xyz` — так что `cargo install`, а с ним и `sudo` для системных пакетов
-сборки, не понадобились вообще. Solana CLI — тоже готовым бинарником, с `release.anza.xyz`.
-Файлы редактируются с Windows-стороны через UNC (`\\wsl.localhost\...`) — так быстрее, чем
-собирать на `/mnt/c` (WSL2 медленно ходит в примонтированный NTFS), а деплой и тесты идут из
-WSL, где тулчейн живёт.
+**The toolchain is in WSL2, not on bare Windows.** `docs/09` R6 predicted exactly this: Anchor
+does not build on Windows. Rust, the Solana CLI and the Anchor CLI live in Ubuntu-24.04 under
+WSL2. The Anchor CLI came as a precompiled binary from `github.com/otter-sec/anchor` (the Anchor
+repository moved there from `coral-xyz`), so `cargo install`, and with it `sudo` for the system
+build packages, was not needed at all. The Solana CLI also came as a ready binary, from
+`release.anza.xyz`. Files are edited from the Windows side through UNC (`\\wsl.localhost\...`),
+which is faster than building on `/mnt/c` (WSL2 is slow on mounted NTFS), while deploys and tests
+run from WSL, where the toolchain lives.
 
-**Чего эта запись не меняет.** `packages/chain` — только интерфейс `ChainAdapter`, без
-реализации. Ни один server action продукта не знает об этой программе: `create-bet.ts` и
-дальше пишет только в базу, `chain` у каждой ставки остаётся `'mock'`. Программа существует и
-проверена, но `sporim.fun` её не видит — это отдельная задача, не эта.
+**What this entry does not change.** `packages/chain` is only the `ChainAdapter` interface, with
+no implementation. No server action of the product knows about this program: `create-bet.ts`
+still writes only to the database, and every bet's `chain` stays `'mock'`. The program exists and
+is verified, but `sporim.fun` does not see it. That is a separate task, not this one.
 
 ---
 
 ## 2026-09-05
 
-### Приём по ссылке: код сам стал ключом, отдельной таблицы нет
+### Accepting by link: the code itself became the key, no separate table
 
-**Решение.** Короткий код спора — капабилити. Миграция `0011` даёт ему три функции по образцу
-`app_referee_token*` и четыре расширяющие политики. Новой таблицы приглашений не появилось.
+**Decision.** A bet's short code is a capability. Migration `0011` gives it three functions
+modelled on `app_referee_token*` and four extending policies. No new invitations table appeared.
 
-**Почему без таблицы.** Довод `0004` был конкретным: токен, лежащий на строке `bets`, прочтёт
-каждый, кто может читать эту строку, — включая оппонента, который мог бы купить себе судью. К
-короткому коду это не относится: он **уже** колонка в `bets`, уже читается каждым участником,
-напечатан на карточке и произносится вслух. Прятать его не от кого. `0003:14-18` заранее
-оставил обе двери открытыми — «a policy keyed on the short code, **or** a narrow SECURITY
-DEFINER join», — и взята первая.
+**Why no table.** The argument in `0004` was specific: a token sitting on a `bets` row can be
+read by anyone who can read that row, including the opponent, who could buy themselves a referee.
+That does not apply to the short code: it is **already** a column in `bets`, already read by every
+participant, printed on the card and spoken aloud. There is no one to hide it from. `0003:14-18`
+left both doors open in advance, "a policy keyed on the short code, **or** a narrow SECURITY
+DEFINER join", and the first was taken.
 
-**Чем платим за 46 бит.** Третье условие `app_may_accept_bet`: код открывает спор, **только
-пока тот `open`**. Угаданный код покупает ровно то же, что утёкшая ссылка, — возможность взять
-сторону спора, которую ещё никто не взял, — а `TRUST_COPY.linkWarning` предупреждает об этом
-создателя прямым текстом. После приёма код перестаёт быть входом, и человека несёт членство.
-Отдельный тест проверяет именно это: `app_may_accept_bet` возвращает false на принятом споре.
+**What we pay for 46 bits.** The third condition of `app_may_accept_bet`: the code opens a bet
+**only while it is `open`**. A guessed code buys exactly the same as a leaked link, the chance to
+take a side of a bet that nobody has taken yet, and `TRUST_COPY.linkWarning` warns the creator
+about this in plain words. After acceptance the code stops being an entrance, and membership
+carries the person. A separate test checks exactly this: `app_may_accept_bet` returns false on an
+accepted bet.
 
-**Две ветки, а не одна.** `confirmReferee` только обновляет, потому что строка судьи пишется
-при создании спора. Строка оппонента существует, лишь если создатель напечатал имя на четвёртом
-экране, — значит нужен и INSERT. Совместить их через `on conflict do update` нельзя:
-потребовалось бы, чтобы прошли обе политики сразу, а для не-участника не проходит ни одна из
-старых.
+**Two branches, not one.** `confirmReferee` only updates, because the referee row is written when
+the bet is created. The opponent row exists only if the creator typed a name on the fourth screen,
+so an INSERT is needed too. They cannot be combined through `on conflict do update`: that would
+require both policies to pass at once, and for a non-participant neither of the old ones passes.
 
-**Триггер отрастил вторую руку.** `0006` поднимал исключение на любую запись `confirmed_at`, не
-благословлённую `app_may_claim_referee`, и отверг бы каждый приём. Комментарии в `0005:48-49` и
-`0006:33-34` предсказали починку дословно — «grows a second arm rather than losing this one».
-Условие судьи не тронуто: своё кресло открывает своя капабилити, и ни одна не открывает чужое.
+**The trigger grew a second arm.** `0006` raised an exception on any write of `confirmed_at` not
+blessed by `app_may_claim_referee`, and would have rejected every acceptance. The comments in
+`0005:48-49` and `0006:33-34` predicted the fix verbatim: "grows a second arm rather than losing
+this one". The referee condition is untouched: each seat is opened by its own capability, and
+neither opens the other's.
 
-**Контекст транзакции собран в одну функцию.** Свойство, делающее пул соединений безопасным —
-_каждая_ переменная пишется при _каждом_ входе, включая гасимые, — держалось на том, что четыре
-обёртки согласны между собой. Третья капабилити это добила: обёртка, забывшая новую переменную,
-не упала бы, а молча унаследовала бы то, что оставил предыдущий запрос. Теперь набор назван один
-раз и пишется целиком, и четвёртую капабилити нельзя применить наполовину.
-
----
-
-### Тесты снова держали форму вместо факта — дважды за день
-
-**Что случилось.** Два пробника сырым SQL упали, и оба — потому что я записал **механизм**
-отказа, а не сам отказ. INSERT отвергается через WITH CHECK и бросает исключение; UPDATE
-отфильтровывается через USING, пишет ноль строк и не бросает ничего. Оба отказа правильные.
-Утверждение на бросок назвало бы провалом тихий, а на ноль строк — громкий.
-
-**Как исправлено.** Пробники проверяют исход: кресло не сменило владельца, читается это
-владельческим соединением, которое никакая политика не приукрасит.
-
-**Почему это стоит записи.** Это третий случай за сутки одной и той же формы. Первый — суббота:
-тест кликал чип по названию дня недели. Второй — копирайт: тест проверял вхождение подстрок
-«took the role» и «refunds you both», и обе они присутствовали внутри двух предложений, ставших
-ложью после разворота правил 4 сентября. `TRUST_COPY.timeline` обещал, что молчание судьи
-оставляет заявку в силе, `refereeUnconfirmed` — что оспаривание стоит залога; и то и другое
-показывалось на живом сайте при зелёном тесте.
-
-Теперь копирайт проверяется по смыслу: слова deposit и bond запрещены во всём копирайте, а
-судья и «заявка в силе» не могут стоять в одном предложении — правило на предложения, а не на
-строку, потому что «say nothing and the claim stands» про окно в 48 часов остаётся правдой.
-Проверено, что старая формулировка этим правилом ловится.
+**The transaction context is built in one function.** The property that makes the connection
+pool safe, that _every_ variable is written on _every_ entry, including the cleared ones, rested
+on four wrappers agreeing with each other. The third capability finished that off: a wrapper that
+forgot the new variable would not have failed, it would have silently inherited whatever the
+previous request left behind. Now the set is named once and written in full, so a fourth
+capability cannot be applied halfway.
 
 ---
 
-### Кошелёк первым, Фантом сразу
+### Tests again held the shape instead of the fact, twice in one day
 
-**Решение (твоё).** Вход через Phantom становится главным путём, почта — запасным. Отменяет
-запись от 3 сентября «почта по умолчанию, кошелёк — когда он реально есть».
+**What happened.** Two raw-SQL probes failed, and both because I recorded the **mechanism** of a
+refusal, not the refusal itself. An INSERT is rejected through WITH CHECK and throws; an UPDATE is
+filtered out through USING, writes zero rows and throws nothing. Both refusals are correct. An
+assertion on a throw would call the quiet one a failure, and one on zero rows would call the loud
+one a failure.
 
-**Почему.** Вопрос «как человек получает $25 в USDC» стоял первым в `RESEARCH-BRIEF-2` и
-назывался главным риском. Ответ, который убирает его целиком: **у человека уже есть Фантом и
-в нём есть USDC.** Тогда on-ramp не нужен вообще — подключил, подписал, готово. Секунды
-вместо пяти минут, ноль KYC, ноль комиссии провайдера на сумме, где эта комиссия могла быть
-половиной ставки.
+**How it was fixed.** The probes check the outcome: the seat did not change owner, read by the
+owner's connection, which no policy can dress up.
 
-**Чем платим.** Аудитория сужается до тех, у кого кошелёк уже есть. Это осознанный размен:
-работающий продукт для крипто-аудитории лучше сломанного для всех. On-ramp остаётся в брифе
-как запасной путь на тот день, когда понадобятся остальные.
+**Why this deserves an entry.** This is the third case in a day of the same shape. The first was
+Saturday: a test clicked a chip by the name of the weekday. The second was copy: a test checked
+for the substrings "took the role" and "refunds you both", and both were present inside two
+sentences that became false after the rules reversal on 4 September. `TRUST_COPY.timeline`
+promised that the referee's silence leaves the claim standing, `refereeUnconfirmed` that
+disputing costs the bond; both were shown on the live site while the test was green.
 
-**Что не отменяется.** Довод от 3 сентября был не про удобство, а про механику: инстаграмный
-вебвью не инжектирует кошелёк, там нет расширений. Это по-прежнему так. Разница в том, что
-теперь мы это обходим, а не уступаем этому — у Фантома есть Browse-диплинк, открывающий наш
-сайт **внутри браузера Фантома**, где кошелёк доступен. Подтверждено их доками в архиве
-ресёрча (`docs.phantom.com/phantom-deeplinks`, `status: 200`):
+Now copy is checked by meaning: the words deposit and bond are banned across all copy, and the
+referee and "the claim stands" cannot appear in one sentence. It is a rule on sentences, not on a
+string, because "say nothing and the claim stands" about the 48-hour window remains true. Checked
+that the old wording is caught by this rule.
 
-> «users can open web apps within Phantom's in-app browser via the Browse deeplink»
+---
 
-Точный формат самой Browse-ссылки в архив не попал — проверять в живых доках и обязательно
-на телефоне, а не по документации: поведение возврата из вебвью документацией не описывается.
+### Wallet first, Phantom right away
 
-**Сделано в тот же день.** Privy умеет ставить конкретный кошелёк первой кнопкой — `'phantom'`
-это отдельное значение `WalletListEntry`, а не только `wallet_connect`. Проверено по типам
-установленного SDK (`@privy-io/react-auth@3.40`), а не по документации:
+**Decision (yours).** Sign-in through Phantom becomes the main path, email the fallback. This
+reverses the 3 September entry "email by default, wallet when there really is one".
+
+**Why.** The question "how does a person get $25 in USDC" stood first in `RESEARCH-BRIEF-2` and
+was named the main risk. The answer that removes it entirely: **the person already has Phantom,
+and it already has USDC.** Then no on-ramp is needed at all: connect, sign, done. Seconds instead
+of five minutes, zero KYC, zero provider fee on an amount where that fee could be half the stake.
+
+**What we pay.** The audience narrows to people who already have a wallet. This is a deliberate
+trade: a working product for a crypto audience beats a broken one for everyone. The on-ramp stays
+in the brief as a fallback for the day we need the rest.
+
+**What is not reversed.** The 3 September argument was not about convenience but about mechanics:
+the Instagram webview does not inject a wallet, there are no extensions there. That is still true.
+The difference is that we now work around it instead of yielding to it: Phantom has a Browse
+deeplink that opens our site **inside the Phantom browser**, where the wallet is available.
+Confirmed by their docs in the research archive (`docs.phantom.com/phantom-deeplinks`,
+`status: 200`):
+
+> "users can open web apps within Phantom's in-app browser via the Browse deeplink"
+
+The exact format of the Browse link itself did not make it into the archive. Check it in the live
+docs and always on a phone, not against the documentation: the return behaviour from the webview
+is not described by the documentation.
+
+**Done the same day.** Privy can put a specific wallet as the first button: `'phantom'` is a
+separate `WalletListEntry` value, not just `wallet_connect`. Checked against the types of the
+installed SDK (`@privy-io/react-auth@3.40`), not against the documentation:
 
 ```ts
 loginMethods: ['wallet', 'email'],
@@ -355,554 +368,564 @@ appearance: {
 },
 ```
 
-Нужны оба поля. `showWalletLoginFirst` поднимает **секцию** кошельков, но не трогает порядок
-кнопок внутри неё, а дефолт у Privy эфирный — `['detected_wallets', 'metamask',
-'coinbase_wallet', 'rainbow', 'wallet_connect']`. `detected_solana_wallets` стоит вторым
-намеренно: это ловушка для того расширения, которое у человека реально стоит, чтобы владельцу
-Solflare или Backpack продукт не казался сделанным под чужой кошелёк.
+Both fields are needed. `showWalletLoginFirst` lifts the wallets **section** but does not touch
+the order of buttons inside it, and Privy's default is Ethereum-flavoured:
+`['detected_wallets', 'metamask', 'coinbase_wallet', 'rainbow', 'wallet_connect']`.
+`detected_solana_wallets` is second on purpose: it is a trap for whichever extension the person
+actually has installed, so that a Solflare or Backpack owner does not feel the product was built
+for someone else's wallet.
 
-`loginMethodsAndOrder.primary` поставил бы `'phantom'` ещё буквальнее — выше всех социальных
-входов. Не используем: SDK помечает его `@deprecated` и предупреждает, что он переопределяет
-их дефолты. Два поддерживаемых поля лучше одного устаревшего.
+`loginMethodsAndOrder.primary` would put `'phantom'` even more literally, above all the social
+logins. We do not use it: the SDK marks it `@deprecated` and warns that it overrides their
+defaults. Two supported fields are better than one deprecated one.
 
-**Открыто.** У Phantom нашёлся собственный SDK со входом через Google и Apple и встроенным
-кошельком — ровно то, за чем брали Privy. Прежде чем мигрировать, нужно понять, как он
-доказывает личность серверу: у Privy это JWT по JWKS и `sub` → `app.user_id` для RLS. Если у
-Фантома только подпись сообщения — это другая модель сессии, а не замена провайдера.
-Подробности и порядок работ — в `docs/NEXT-SESSION.md`.
+**Open.** Phantom turned out to have its own SDK with Google and Apple sign-in and a built-in
+wallet, exactly what Privy was chosen for. Before migrating, we need to understand how it proves
+identity to the server: with Privy it is a JWT over JWKS and `sub` → `app.user_id` for RLS. If
+Phantom has only a message signature, that is a different session model, not a provider swap.
+Details and the order of work are in `docs/NEXT-SESSION.md`.
 
 ---
 
 ## 2026-09-04
 
-### Внешний ресёрч пришёл, и часть выводов пришлось принять против себя
+### External research arrived, and some conclusions had to be accepted against ourselves
 
-**Что.** Прогон по `docs/RESEARCH-BRIEF.md`: 9 разделов, 100 фактов с цитатами, 361
-заархивированная страница. Лежит вне репозитория, в `deepresearch/out/moneydeal`.
+**What.** A run against `docs/RESEARCH-BRIEF.md`: 9 sections, 100 facts with citations, 361
+archived pages. It lives outside the repository, in `deepresearch/out/moneydeal`.
 
-**Проверил, прежде чем верить.** StickK помечен как отрицательный результат — в `sources/`
-лежат 14 файлов stickk.com, и все они `status: 403`. Цитата из Gambling Act s.13 сверена с
-архивом `legislation.gov.uk`, `status: 200`, совпадает дословно. Ресёрч архивирует свои
-неудачи, а не заполняет их выдумкой; дальше можно опираться.
+**Checked before believing.** StickK is marked as a negative result: `sources/` holds 14
+stickk.com files, and all are `status: 403`. The Gambling Act s.13 quote was checked against the
+`legislation.gov.uk` archive, `status: 200`, and matches word for word. The research archives its
+failures instead of filling them with invention, so we can rely on it from here.
 
 ---
 
-### USDC можно заморозить, и для этого достаточно двух подписей из четырёх
+### USDC can be frozen, and two signatures out of four are enough
 
-**Решение.** Программа привязывается к каноническому минту и к **классическому** SPL Token
-Program по id; произвольный минт не принимается.
+**Decision.** The program binds to the canonical mint and to the **classic** SPL Token Program by
+id; an arbitrary mint is not accepted.
 
-**Почему — проверено на mainnet, а не вычитано.** Ресёрч честно написал, что декодировать
-минт не смог, и оставил это релизной проверкой. Два вызова `getAccountInfo`:
+**Why: verified on mainnet, not read somewhere.** The research honestly wrote that it could not
+decode the mint and left that as a release check. Two `getAccountInfo` calls:
 
 ```
 EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
-  freezeAuthority: 7dGbd2QZcCKcTndnHcTL8q7SMVXAkp688NTQYwrRCrar   ← не null
-  owner:           TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA    ← классический SPL
+  freezeAuthority: 7dGbd2QZcCKcTndnHcTL8q7SMVXAkp688NTQYwrRCrar   ← not null
+  owner:           TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA    ← classic SPL
   decimals:        6
 
 7dGbd2QZcCKcTndnHcTL8q7SMVXAkp688NTQYwrRCrar
   type: multisig · numRequiredSigners: 2 · numValidSigners: 4
 ```
 
-**Что это значит.** Заморозка применяется к **токен-аккаунту**, а не к кошельку: замороженный
-эскроу нельзя ни опустошить, ни пополнить, и ни программа, ни владелец, ни делегат этого не
-переопределяют. Обещать неотчуждаемость средств мы не можем и не будем.
+**What this means.** A freeze applies to the **token account**, not to the wallet: a frozen escrow
+can be neither emptied nor topped up, and neither the program, nor the owner, nor a delegate
+overrides it. We cannot promise that funds cannot be seized, and we will not.
 
-Заодно закрыто: USDC — не Token-2022, значит расчёт не ломают transfer fee и transfer hook; и
-`decimals: 6` совпадает с `USDC_DECIMALS`.
-
----
-
-### Юридическую рамку решено не считать блокером
-
-**Решение (твоё, 4 сентября).** Строим оба формата, юридические вопросы решаем по мере
-поступления. Bet не паркуем.
-
-**Что при этом известно** — чтобы через полгода это не выглядело недосмотром. В Gambling Act
-2005 s.13 «betting intermediary» определён как тот, кто обеспечивает заключение пари _между
-другими_, а частное исключение (s.296) не покрывает того, кто делает это в ходе бизнеса; s.36
-привязывает применимость к оборудованию и пользователям, а не к месту регистрации. Порога для
-3% нет — проблема качественная: процент от ставок это довод в пользу «ведёт бизнес на пари».
-Google Play прямым текстом запрещает приложения, принимающие ставки или эскроу ради денежного
-приза, — мобильный путь закрыт заранее, веб нет. Документированная и годами работающая форма
-(Forfeit, Beeminder) — обязательство перед собой без пула и без выигравшего, то есть наш
-Commit.
+Also settled: USDC is not Token-2022, so transfer fees and transfer hooks do not break
+settlement; and `decimals: 6` matches `USDC_DECIMALS`.
 
 ---
 
-### Залога за оспаривание больше нет
+### The legal frame is decided not to be a blocker
 
-**Решение.** `Dispute.bond`, `calculateDisputeBond`, `DISPUTE_BOND_BPS` и колонка
-`disputes.bond_amount` удалены (миграция `0009`). Не согласиться теперь бесплатно.
+**Decision (yours, 4 September).** We build both formats and handle legal questions as they
+arrive. Bet is not parked.
 
-**Почему.** Залог решает одну задачу: не дать проигравшему возражать против всего подряд
-даром. В анонимном рынке это единственный рычаг — отсюда он у UMA и Reality.eth. У нас обе
-стороны и судья знают друг друга, возражение подписано именем, и быть тем другом, который
-оспаривает очевидно проигранный спор, стоит того, что залогом не оценивается. Мы брали деньги
-за сдерживание, которое у нас уже было, и превращали несогласие в подачу иска.
-
-**Что изменилось помимо кода.** `calculateSettlement` больше не знает про спор вообще:
-`SettlementInput.dispute` и `Settlement.bond` ушли. Числа зависят только от ставок, комиссии и
-того, кто выиграл. Возражал ли кто-то по дороге — не меняет ни одной цифры ни на одном экране.
-
----
-
-### Молчание судьи после оспаривания возвращает деньги — всегда
-
-**Решение.** `settleUnrefereed` удалён из домена и из типа `bet_action` (миграция `0010`).
-Подтверждённый судья или нет — не ответил к дедлайну, спор уходит в `refundExpired`.
-Отменяет запись от 3 сентября, где молчание **подтверждённого** оставляло заявку в силе.
-
-**Почему.** `§03` ресёрча: молчание принимается как согласие только **пока никто не
-возразил** — так у UMA и Polymarket, и другого прецедента нет. После возражения расхождение
-известно как факт, и решать его по тому, открыл ли третий человек ссылку, значит решать по
-явке, а не по существу: правая сторона теряет пот из-за чужого молчания.
-
-И вторая половина: старое правило зарабатывало себе на жизнь тем, что делало возражение
-проигравшего бесполезным. Это имело смысл, пока альтернативой был возврат. Залога нет —
-сдерживание стало социальным, и оно одинаково в обеих ветках. Защищать стало нечего.
-
-**Чем платим, прямым текстом.** Проигравший может возразить бесплатно и, если судья потом
-пропадёт, забрать своё. Ставка на то, что среди друзей так делать стыдно. Если воронка скажет
-обратное — вернёмся, и тогда с цифрами, а не с гипотезами.
-
-**Что подтверждение судьи значит теперь.** Только право **выносить решение**: неподтверждённое
-имя судить не может. Этого достаточно, чтобы карточка честно говорила второй стороне, есть ли
-вообще судья, — до того, как она внесёт деньги. Ради этого 0004 и писался; молчание он больше
-не различает.
+**What is known meanwhile**, so that in six months this does not look like an oversight. Under
+the Gambling Act 2005 s.13 a "betting intermediary" is someone who makes arrangements for the
+conclusion of bets _between others_, and the private exemption (s.296) does not cover one who does
+this in the course of a business; s.36 ties applicability to the equipment and the users, not to
+the place of registration. There is no threshold for 3%; the problem is qualitative: a percentage
+of the stakes is an argument for "carries on a business of betting". Google Play explicitly bans
+apps that accept bets or escrow for a cash prize, so the mobile path is closed in advance and the
+web is not. The documented form that has worked for years (Forfeit, Beeminder) is a commitment to
+yourself with no pool and no winner, which is our Commit.
 
 ---
 
-### Что из ресёрча ещё не сделано
+### The dispute bond is gone
 
-- **Токен судьи хранится в открытом виде** (`referee_invites.token`). Рекомендация `§04` —
-  хранить `sha256` и искать по дайджесту. Энтропии хватает с запасом (187 бит против
-  рекомендованных 128), защищаемся не от угадывания, а от дампа базы и реплики.
-- **`GET` не должен ничего тратить.** Telegram, WhatsApp и Slack дёргают ссылку ради превью
-  раньше человека, и определять их по `User-Agent` нельзя — это не граница безопасности. Приём
-  по ссылке: `GET` показывает, `POST` тратит.
-- **Эскроу пишем сами.** Форкать нечего: `ironaddicteddog/anchor-escrow` закрывает ~40% и
-  отменяется только инициатором, Squads v4 — не эскроу. Anchor, а не Pinocchio. Аудита ни у
-  одного кандидата нет.
-- **Возврат по таймауту — отдельная permissionless-инструкция**, потому что дедлайн сам по
-  себе ничего не запускает: транзакцию должен кто-то подать, и у него должен быть SOL.
-- **Шрифты:** `fonttools varLib.instancer "$IN" "wght=$W" --static`, затем проверка, что в
-  результате нет таблицы `fvar`. Валидный TTF ещё не доказательство — satori парсит своим
-  `opentype.js`, нужен рендер-тест на нашей версии.
-- **Privy:** $0 до 499 MAU, $299 на 500–2499, $499 на 2500–9999; 50k подписей и $1M оборота в
-  месяц включены.
+**Decision.** `Dispute.bond`, `calculateDisputeBond`, `DISPUTE_BOND_BPS` and the
+`disputes.bond_amount` column are removed (migration `0009`). Disagreeing is now free.
+
+**Why.** The bond solves one problem: keeping the loser from objecting to everything for free. In
+an anonymous market it is the only lever, which is why UMA and Reality.eth have it. With us both
+sides and the referee know each other, the objection is signed with a name, and being the friend
+who disputes an obviously lost bet costs something that a bond does not price. We were charging
+money for a deterrent we already had, and turning disagreement into filing a lawsuit.
+
+**What changed beyond the code.** `calculateSettlement` no longer knows about disputes at all:
+`SettlementInput.dispute` and `Settlement.bond` are gone. The numbers depend only on the stakes,
+the fee and who won. Whether anyone objected along the way changes no figure on any screen.
 
 ---
 
-### Провайдер входа живёт на `/new/*`, а не в корневом layout
+### The referee's silence after a dispute returns the money, always
 
-**Решение.** `AuthProvider` смонтирован в `apps/web/src/app/new/layout.tsx`, снаружи
-`DraftProvider`. Лендинг и `/r/[token]` его не грузят.
+**Decision.** `settleUnrefereed` is removed from the domain and from the `bet_action` type
+(migration `0010`). Whether or not the referee is confirmed, if they did not answer by the
+deadline, the dispute goes to `refundExpired`. This reverses the 3 September entry, where the
+silence of a **confirmed** referee left the claim standing.
 
-**Почему.** Трафик приходит с рилса, на телефон, на мобильный интернет — и первым экраном
-видит лендинг, которому нечего аутентифицировать. Грузить ради этого SDK кошелька значит
-брать плату за то, что человеку не нужно. Снаружи `DraftProvider`, а не внутри, по другой
-причине: черновик обязан пережить поход в почту, и вход не должен иметь возможности
-размонтировать то, что человек пишет.
+**Why.** `§03` of the research: silence is taken as consent only **while no one has objected**.
+That is how UMA and Polymarket do it, and there is no other precedent. After an objection the
+disagreement is known as a fact, and resolving it by whether a third person opened a link means
+deciding by attendance, not on the merits: the right side loses the pot because of someone
+else's silence.
 
-**Что изменилось.** До этого провайдер не был смонтирован **нигде** — файл существовал, а
-`/new/review` падал на пререндере с `useAuth must be used inside <AuthProvider>`.
+And the second half: the old rule earned its keep by making the loser's objection useless. That
+made sense while the alternative was a refund. With no bond, the deterrent became social, and it
+is the same in both branches. There is nothing left to protect.
 
----
+**What we pay, in plain words.** The loser can object for free and, if the referee later
+disappears, take their stake back. The bet is that among friends doing so is embarrassing. If the
+funnel says otherwise, we come back, and then with numbers rather than hypotheses.
 
-### Заглушка сессии для e2e — и почему её можно держать в бандле
-
-**Решение.** `NEXT_PUBLIC_AUTH_MODE=stub` подменяет провайдер состоянием «готов и вошёл».
-Флаг **отвергается, если `appEnv` не `local`**: на preview и в проде переменная не делает
-ничего. Гарантия под тестом отдельно, `it.each(['preview', 'production'])`.
-
-**Почему так, а не «просто не собирать это в проде».** Два независимых уровня, и второй
-важнее первого. Даже если бы флаг включился, он не даёт ничего: это убеждение клиента и
-только. Токена под ним нет, а `create-bet` верит исключительно JWT, проверенному по JWKS —
-запрос из-под заглушки отвергается ровно как анонимный. Первый уровень (`appEnv`) сделан на
-случай, что второй когда-нибудь сломают.
-
-**Почему вообще понадобилось.** e2e должны идти одинаково у меня и на CI, где нет
-`.env.local` и нет приложения в Privy. Без заглушки CI получал бы `configured: false`,
-кнопка «I'm committed» дизейблится, и десяток тестов падал бы по причине, к продукту
-отношения не имеющей.
+**What the referee's confirmation means now.** Only the right to **issue a ruling**: an
+unconfirmed name cannot judge. That is enough for the card to tell the other side honestly
+whether there is a referee at all, before they put money in. That is what 0004 was written for;
+it no longer distinguishes silence.
 
 ---
 
-### e2e ходят к кошельку через явный `?mock=ok`
+### What from the research is still not done
 
-**Решение.** К `?mockFail=CODE` добавился `?mock=ok`. Оба означают одно: говорить с фейковым
-кошельком, а не с сервером. Два теста, которые проходят кнопку «залочить», теперь пишут это
-в URL.
-
-**Почему.** Настоящая блокировка требует настоящей сессии, которую headless-браузер получить
-не может. Раньше happy-path тест кликал кнопку и **выглядел** так, будто проверил серверный
-путь. Теперь он говорит, что проверяет экран, а не сервер. Соблазн был сделать наоборот —
-дать заглушке ещё и серверную половину; это превратило бы зелёный тест в неправду про то,
-что покрыто.
-
-**Что осталось непокрытым и как это закрывается.** Живой путь «вошёл → создал → строка в
-базе» проверяется руками на `sporim.fun`, и это записано в `STATUS.md` как остаток.
+- **The referee token is stored in plain text** (`referee_invites.token`). The `§04`
+  recommendation is to store `sha256` and look up by digest. The entropy is more than enough
+  (187 bits against the recommended 128); we are defending not against guessing but against a
+  database dump and a replica.
+- **`GET` must not spend anything.** Telegram, WhatsApp and Slack hit the link for a preview
+  before the person does, and detecting them by `User-Agent` is not possible, since it is not a
+  security boundary. Accepting by link: `GET` shows, `POST` spends.
+- **We write the escrow ourselves.** There is nothing to fork: `ironaddicteddog/anchor-escrow`
+  covers ~40% and can be canceled only by the initiator, and Squads v4 is not an escrow. Anchor,
+  not Pinocchio. None of the candidates has an audit.
+- **A refund on timeout is a separate permissionless instruction**, because a deadline by itself
+  triggers nothing: someone has to submit the transaction, and they need SOL.
+- **Fonts:** `fonttools varLib.instancer "$IN" "wght=$W" --static`, then check that the result has
+  no `fvar` table. A valid TTF is not yet proof: satori parses with its own `opentype.js`, so a
+  render test on our version is needed.
+- **Privy:** $0 up to 499 MAU, $299 for 500–2499, $499 for 2500–9999; 50k signatures and $1M of
+  monthly volume included.
 
 ---
 
-### Ресёрч, которого не было: инженерный слой
+### The sign-in provider lives on `/new/*`, not in the root layout
 
-**Решение.** `docs/RESEARCH-BRIEF.md` — 9 блоков вопросов наружу, с приоритетом
-«эскроу → USDC → юридическое».
+**Decision.** `AuthProvider` is mounted in `apps/web/src/app/new/layout.tsx`, outside
+`DraftProvider`. The landing page and `/r/[token]` do not load it.
 
-**Почему.** В `development-workflow.md` первым шагом стоит «найди, кто это уже написал»
-(`gh search repos`/`code`, реестры пакетов, форк вместо своего кода). Продуктовый ресёрч
-сделан — `docs/01`…`docs/11`. Инженерный не делался ни разу, и это уже стоило: полтора часа
-на монорепо в Vercel вместо чтения их доков, и одно уверенное утверждение про Xata, которое
-оказалось неверным.
+**Why.** Traffic comes from a reel, on a phone, over mobile data, and the first screen is a
+landing page that has nothing to authenticate. Loading a wallet SDK for it means charging for
+something the person does not need. Outside `DraftProvider`, not inside, for a different reason:
+the draft must survive a trip to the mailbox, and sign-in must not be able to unmount what the
+person is writing.
 
-**Где это правило не работает.** Три дефекта в деньгах — залог за спор как бесплатный
-опцион, молчание судьи, самоподтверждённый судья через INSERT — найдены рассуждением и
-тычком в живую базу. Чужой код их не показал бы: у чужого продукта другая экономика.
-Поэтому бриф спрашивает **факты и прецеденты** (кто платит за ATA, что делают при молчании
-арбитра, чем ломают оптимистичные оракулы), а не «как надо сделать».
+**What changed.** Before this the provider was not mounted **anywhere**: the file existed, and
+`/new/review` crashed on prerender with `useAuth must be used inside <AuthProvider>`.
+
+---
+
+### The session stub for e2e, and why it can stay in the bundle
+
+**Decision.** `NEXT_PUBLIC_AUTH_MODE=stub` replaces the provider with a "ready and signed in"
+state. The flag is **rejected unless `appEnv` is `local`**: on preview and in production the
+variable does nothing. That guarantee is covered by a separate test, `it.each(['preview',
+'production'])`.
+
+**Why this and not "just don't build it into prod".** Two independent layers, and the second is
+more important than the first. Even if the flag were turned on, it grants nothing: it is the
+client's belief and nothing more. There is no token under it, and `create-bet` trusts only a JWT
+verified over JWKS, so a request from under the stub is rejected exactly like an anonymous one.
+The first layer (`appEnv`) is there in case someone breaks the second.
+
+**Why it was needed at all.** e2e must run the same for me and on CI, which has no `.env.local`
+and no Privy app. Without the stub CI got `configured: false`, the "I'm committed" button was
+disabled, and a dozen tests failed for a reason unrelated to the product.
+
+---
+
+### e2e reach the wallet through an explicit `?mock=ok`
+
+**Decision.** `?mock=ok` was added next to `?mockFail=CODE`. Both mean the same thing: talk to
+the fake wallet, not to the server. The two tests that go through the "lock" button now write
+this in the URL.
+
+**Why.** A real lock needs a real session, which a headless browser cannot get. Before, the
+happy-path test clicked the button and **looked** as if it had checked the server path. Now it
+says it checks the screen, not the server. The temptation was to do the opposite and give the stub
+a server half as well; that would have turned a green test into a lie about what is covered.
+
+**What stays uncovered and how it is closed.** The live path "signed in → created → row in the
+database" is checked by hand on `sporim.fun`, and it is recorded in `STATUS.md` as a remainder.
+
+---
+
+### Research that did not exist: the engineering layer
+
+**Decision.** `docs/RESEARCH-BRIEF.md` is 9 blocks of questions for the outside, prioritised
+"escrow → USDC → legal".
+
+**Why.** `development-workflow.md` puts "find who already wrote it" first (`gh search repos`/
+`code`, package registries, a fork instead of our own code). The product research is done:
+`docs/01`…`docs/11`. The engineering research was never done, and that has already cost us: an
+hour and a half on a monorepo in Vercel instead of reading their docs, and one confident claim
+about Xata that turned out to be wrong.
+
+**Where this rule does not work.** Three money defects (the dispute bond as a free option, the
+referee's silence, a self-confirmed referee through INSERT) were found by reasoning and by poking
+the live database. Someone else's code would not have shown them: another product has another
+economy. That is why the brief asks for **facts and precedents** (who pays for the ATA, what
+people do when an arbiter is silent, how optimistic oracles get broken), not "how it should be
+done".
 
 ---
 
 ## 2026-09-03
 
-### Судья бывает подтверждённым и нет, и молчание у них значит разное
+### A referee is confirmed or not, and for them silence means different things
 
-**Решение.** У судьи появилось состояние: он либо открыл свою ссылку и взял роль, либо это
-просто имя, которое создатель напечатал на четвёртом экране. Молчание **подтверждённого**
-судьи оставляет заявку в силе (`settleUnrefereed`, как и раньше). Молчание
-**неподтверждённого** возвращает деньги обоим (`refundExpired`).
+**Decision.** The referee gained a state: they either opened their link and took the role, or
+they are just a name the creator typed on the fourth screen. The silence of a **confirmed**
+referee leaves the claim standing (`settleUnrefereed`, as before). The silence of an
+**unconfirmed** one returns the money to both (`refundExpired`).
 
-**Почему.** Прошлое решение («молчание судьи оставляет заявку в силе») держалось на том, что
-судья виден на карточке до того, как второй внёс деньги. Но согласия судьи там не было ни у
-кого — человек узнавал о роли только из спора, недели спустя, по холодной ссылке. Отдать
-исход молчанию того, кого никто не спрашивал, — значит наказать спорщика за единоличный выбор
-создателя. Ставка с неподтверждённым судьёй честнее называется ставкой на слово.
+**Why.** The previous decision ("the referee's silence leaves the claim standing") rested on the
+referee being visible on the card before the second side puts money in. But nobody had the
+referee's consent there: the person learned of the role only from a dispute, weeks later, by a
+cold link. To hand the outcome to the silence of someone nobody asked is to punish the disputer
+for the creator's unilateral choice. A bet with an unconfirmed referee is more honestly called a
+bet on someone's word.
 
-**Не бесплатный опцион ни в одной ветке.** Залог уходит второй стороне и при возврате
-(`bondRouting`), так что «поспорить и подождать» стоит денег. И проверка идёт по состоянию
-судьи **на момент дедлайна**, а не на момент открытия спора: настоящий друг, получивший
-ссылку, ещё успевает прийти и рассудить — тест на это есть.
+**Not a free option in either branch.** The bond goes to the other side on a refund too
+(`bondRouting`), so "dispute and wait" costs money. And the check uses the referee's state **at
+the deadline**, not at the moment the dispute opened: a real friend who got the link still has
+time to come and rule; there is a test for that.
 
-**Что изменилось.** `Referee extends Party` с `confirmedAtSeconds` и `isRefereeConfirmed()`;
-ветвление в `disputedActions`; `createBet` принудительно обнуляет подтверждение — согласие
-даёт судья, а не тот, кто его назвал. Строка «Кто решает» на карточке теперь всегда говорит,
-принял человек роль или нет; экран review предупреждает об этом до подписи.
+**What changed.** `Referee extends Party` with `confirmedAtSeconds` and `isRefereeConfirmed()`;
+branching in `disputedActions`; `createBet` forcibly zeroes the confirmation, since consent is
+given by the referee, not by whoever named them. The "Who decides" line on the card now always
+says whether the person accepted the role; the review screen warns about it before signing.
 
-### Две ссылки, два секрета, две таблицы
+### Two links, two secrets, two tables
 
-**Решение.** Приём ставки и роль судьи — разные капабилити и разные секреты.
-`bets.short_code` (8 base58) остаётся ссылкой «прими ставку», `/r/<token>` (32 base58) —
-ссылкой «рассуди». Длины взаимоисключающие, поэтому `isShortCode` и `isRefereeToken` не
-пересекаются и токен, вставленный не в тот роут, отбивается гардом до SQL.
+**Decision.** Accepting a bet and the referee role are different capabilities and different
+secrets. `bets.short_code` (8 base58) stays the "accept the bet" link, `/r/<token>` (32 base58)
+the "judge it" link. The lengths are mutually exclusive, so `isShortCode` and `isRefereeToken` do
+not overlap, and a token pasted into the wrong route is turned away by the guard before SQL.
 
-**Почему не один токен.** Тот, кто открыл ссылку первым, сам выбирал бы себе роль — и выбрал
-бы ту, что ему выгодна.
+**Why not one token.** Whoever opened the link first would pick their own role, and pick the one
+that suits them.
 
-**Почему отдельная таблица `referee_invites`, а не колонка в `bets`.** RLS построчный:
-политика, разрешающая оппоненту читать свою ставку, разрешает читать **все её колонки**.
-Токен на строке ставки был бы виден ровно тому, кому нельзя, — он передал бы его сообщнику и
-купил себе судью. У отдельной таблицы своя политика, и в ней назван только создатель.
+**Why a separate `referee_invites` table, not a column in `bets`.** RLS is per row: a policy that
+lets the opponent read their own bet lets them read **all of its columns**. A token on the bet
+row would be visible to exactly the person who must not see it; they would pass it to an
+accomplice and buy themselves a referee. A separate table has its own policy, and it names only
+the creator.
 
-**Как авторизуется тот, кто ещё не участник.** Через `set_config('app.referee_token', …,
-true)` — так же, как DID: секрет уходит в транзакцию параметром, политики сравнивают его сами.
-Ничего о своей роли клиент не сообщает. Это ответ на вопрос, оставленный открытым в `0003`;
-приём ставки закрывается той же формой.
+**How someone who is not yet a participant is authorised.** Through `set_config('app.referee_token',
+…, true)`, the same way as the DID: the secret goes into the transaction as a parameter and the
+policies compare it themselves. The client reports nothing about its role. This is the answer to
+the question left open in `0003`; accepting a bet is closed by the same form.
 
-**Оба перехода запрещены дважды.** Сторона не может стать судьёй (`app_may_claim_referee` плюс
-проверка в репозитории), судья не может взять сторону (`openActions` не предлагает `accept`
-роли `referee`). Подтверждение необратимо: триггер не даёт ни снять его, ни передать.
+**Both transitions are forbidden twice.** A side cannot become the referee (`app_may_claim_referee`
+plus a check in the repository), and the referee cannot take a side (`openActions` does not offer
+`accept` to the `referee` role). Confirmation is irreversible: a trigger allows neither removing
+it nor transferring it.
 
-### Дыра, найденная тестом к собственной миграции
+### A hole found by the test for our own migration
 
-**Найдено.** Тест ожидал, что сырой `UPDATE` создателя по строке судьи будет отклонён, и
-увидел, что он проходит. `participants_update_on_my_bets` из `0002` разрешает участнику писать
-любую строку своей ставки — правильное правило для всей строки и неправильное для одной
-колонки: `confirmed_at` — это запись о согласии **другого человека**.
+**Found.** A test expected a raw `UPDATE` by the creator on the referee's row to be rejected, and
+saw that it goes through. `participants_update_on_my_bets` from `0002` lets a participant write any
+row of their bet: the right rule for the whole row and the wrong one for a single column.
+`confirmed_at` is a record of **another person's** consent.
 
-**Почему не политикой и не грантом.** Политика построчная, а строка законно принадлежит этому
-вызывающему. Колоночный грант выдаётся роли, а не политике, — отзыв `update (confirmed_at)`
-закрыл бы и тот единственный путь, который должен работать.
+**Why not by policy or by grant.** A policy is per row, and the row legitimately belongs to this
+caller. A column grant is issued to a role, not to a policy: revoking `update (confirmed_at)` would
+close the one path that must work too.
 
-**Исправлено** триггером `participants_confirmation_guard` (`0005`): подтверждение может
-поставить только транзакция, несущая приглашение. Он же держит необратимость — оба правила про
-одну колонку, и то, что они читались порознь, и было причиной, по которой щель нашлась.
+**Fixed** with the trigger `participants_confirmation_guard` (`0005`): the confirmation can only be
+set by a transaction that carries an invitation. It also holds the irreversibility: both rules are
+about one column, and the fact that they were read separately was the reason the gap was found.
 
-### Слой базы построен — и чем он отличается от плана
+### The database layer is built, and how it differs from the plan
 
-**Что есть.** Миграции обычными `.sql` с идемпотентным раннером
-(`pnpm --filter @sporim/web migrate`, реестр `_sporim_migrations` с sha256 и advisory-lock).
-Таблицы `users` · `bets` · `participants` · `claims` · `disputes` · `bet_events` · `waitlist`.
-Перечисления домена продублированы Postgres-энумами, и тест сверяет `enum_range` с `as const`
-массивами — рассинхрон падает, а не тлеет.
+**What exists.** Migrations as plain `.sql` with an idempotent runner
+(`pnpm --filter @sporim/web migrate`, registry `_sporim_migrations` with sha256 and an advisory
+lock). Tables `users` · `bets` · `participants` · `claims` · `disputes` · `bet_events` ·
+`waitlist`. The domain enums are duplicated as Postgres enums, and a test compares `enum_range`
+with the `as const` arrays, so a mismatch fails instead of smouldering.
 
-**Деньги.** `bigint` в базовых единицах, драйвер настроен на `postgres.BigInt`, а zod-схема
-строки принимает bigint или строку из цифр и **отвергает `number`**. Потеря точности —
-ошибка разбора, а не тихая недоплата. Проверено вручную: 100 USDC и значение за пределами
-`Number.MAX_SAFE_INTEGER` проходят туда-обратно без искажения.
+**Money.** `bigint` in base units, the driver set to `postgres.BigInt`, and the row's zod schema
+accepts a bigint or a digit string and **rejects `number`**. Loss of precision is a parse error,
+not a quiet underpayment. Checked by hand: 100 USDC and a value beyond `Number.MAX_SAFE_INTEGER`
+round-trip without distortion.
 
-**RLS.** Включён и `FORCE` на всех семи таблицах, 18 политик, `DELETE` не выдан никому.
-Без контекста пользователя — ноль строк. Проверено отдельно от тестов агента.
+**RLS.** Enabled and `FORCE`d on all seven tables, 18 policies, `DELETE` granted to no one.
+Without a user context, zero rows. Verified separately from the agent's tests.
 
-**Три места, где домен и разумная схема разошлись:**
+**Three places where the domain and a sensible schema diverged:**
 
-1. У `Bet` нет подписи, а у участника должна быть. Подписи передаются отдельным аргументом и
-   отбрасываются на обратном пути — `Bet.signature` не выдумывали.
-2. `users` читается только про себя, поэтому имя оппонента через join не достать.
-   `participants` носит `display_name` и `wallet_address` сам.
-3. **`accept` пока невыразим.** Принимающий по определению ещё не участник, поэтому и гейт, и
-   политики его отвергают. Это правильно: его полномочие — обладание ссылкой, а такой
-   капабилити в модели пока нет. Нужна отдельная функция и политика вместе с флоу приёма.
+1. `Bet` has no signature, but a participant must. Signatures are passed as a separate argument
+   and dropped on the way back; `Bet.signature` was not invented.
+2. `users` is readable only about oneself, so the opponent's name cannot be reached through a
+   join. `participants` carries `display_name` and `wallet_address` itself.
+3. **`accept` is not expressible yet.** The acceptor is by definition not yet a participant, so
+   both the gate and the policies reject them. That is right: their authority is possession of the
+   link, and the model has no such capability yet. A separate function and policy are needed along
+   with the acceptance flow.
 
-**Дыра, найденная агентом в собственной миграции `0002` и закрытая в `0003`:** вставка в
-`participants` позволяла любому, кто знает id ставки, занять вакантную роль и прочитать себе
-доступ. Сужено до «создатель добавляет себя в свою ставку».
-
----
-
-### CI собирал пустоту
-
-**Найдено.** Корневой скрипт `build` использовал фильтры `--filter './packages/**'
---filter './apps/**'`, которые не совпадали ни с одним проектом. `pnpm` печатал
-«No projects matched the filters» и выходил с кодом 0 — то есть шаг «Build» в CI был
-декоративным с самого появления. Прод-сборка могла быть сломана сколько угодно, и ветка
-оставалась зелёной.
-
-**Исправлено** на `pnpm -r build`: `-r` и так означает «в каждом пакете воркспейса, где такой
-скрипт есть». Проверено — теперь действительно собирает `apps/web`.
-
-**Побочно:** локально `pnpm build` конфликтует с запущенным `pnpm dev` за `.next`
-(EPERM на Windows). Для e2e это уже решено через `NEXT_DIST_DIR=.next-e2e`; для ручной сборки
-достаточно остановить дев-сервер.
+**A hole the agent found in its own migration `0002`, closed in `0003`:** an insert into
+`participants` let anyone who knows a bet's id take a vacant role and grant themselves read
+access. Narrowed to "the creator adds themselves to their own bet".
 
 ---
 
-### Xata вместо Supabase — и RLS всё-таки есть
+### CI was building nothing
 
-**Решение.** База — Xata (обычный Postgres по `DATABASE_URL`), не Supabase. Row-level security
-**включаем**, через отдельную роль без `BYPASSRLS`.
+**Found.** The root `build` script used the filters `--filter './packages/**' --filter
+'./apps/**'`, which matched no project. `pnpm` printed "No projects matched the filters" and
+exited with code 0, so the "Build" step in CI had been decorative since it first appeared. The
+production build could be broken for as long as it liked and the branch stayed green.
 
-**Что такое Xata сегодня.** Проверено по докам 2026-09-03: это Postgres-платформа —
-ветки копированием-при-записи, клоны продакшена с вырезанным PII, миграции схемы, PGStream.
-Аутентификации приложения, браузерного SDK и авто-API у неё нет; `lite.xata.io` (старый
-продукт со своим data-API) редиректит на новые доки. Их OAuth — это доступ к аккаунту Xata,
-а не к данным приложения.
+**Fixed** to `pnpm -r build`: `-r` already means "in every workspace package that has such a
+script". Verified, it now really builds `apps/web`.
 
-**Что мы теряем по сравнению с Supabase, а что нет.** Теряем только автоматическую прошивку
-«JWT → сессия БД»: `auth.jwt()` не существует, политике некому скормить токен. Сам RLS —
-фича Postgres, а не Supabase, и он нам полностью доступен. Контекст пользователя подставляем
-сами, это строк двадцать.
+**Side note:** locally `pnpm build` conflicts with a running `pnpm dev` over `.next` (EPERM on
+Windows). For e2e this is already solved through `NEXT_DIST_DIR=.next-e2e`; for a manual build it
+is enough to stop the dev server.
 
-**Как это устроено и почему именно так.** Роль подключения `xata` имеет `BYPASSRLS` —
-политики её просто не видят, я это проверил: первая проба «работала», а на деле показывала
-чужие строки. Поэтому:
+---
 
-1. Отдельная роль `sporim_app` — `NOLOGIN NOBYPASSRLS`, выдана роли `xata`.
-2. На таблицах `ENABLE` **и** `FORCE ROW LEVEL SECURITY` — без `FORCE` владелец таблицы
-   обходит политики.
-3. Каждая транзакция начинается с `SET LOCAL ROLE sporim_app` и
+### Xata instead of Supabase, and RLS exists after all
+
+**Decision.** The database is Xata (plain Postgres over `DATABASE_URL`), not Supabase. We
+**enable** row-level security, through a separate role without `BYPASSRLS`.
+
+**What Xata is today.** Checked against the docs on 2026-09-03: it is a Postgres platform with
+copy-on-write branches, production clones with PII stripped, schema migrations, and PGStream. It
+has no app authentication, no browser SDK and no auto-API; `lite.xata.io` (the old product with its
+own data API) redirects to the new docs. Their OAuth is access to the Xata account, not to the
+app's data.
+
+**What we lose compared to Supabase, and what we do not.** We lose only the automatic wiring of
+"JWT → DB session": `auth.jwt()` does not exist, and there is nothing to feed a token to a policy.
+RLS itself is a Postgres feature, not a Supabase one, and it is fully available to us. We supply
+the user context ourselves, about twenty lines.
+
+**How it works and why exactly so.** The connection role `xata` has `BYPASSRLS`, so policies simply
+do not see it. I checked: the first probe "worked" and in fact showed other people's rows. So:
+
+1. A separate role `sporim_app`, `NOLOGIN NOBYPASSRLS`, granted to the role `xata`.
+2. On the tables, `ENABLE` **and** `FORCE ROW LEVEL SECURITY`; without `FORCE` the table owner
+   bypasses the policies.
+3. Every transaction begins with `SET LOCAL ROLE sporim_app` and
    `set_config('app.user_id', <privy did>, true)`.
-4. Политики читают `current_setting('app.user_id', true)`.
+4. The policies read `current_setting('app.user_id', true)`.
 
-**Проверено на живой базе end-to-end:** с контекстом видна одна своя строка, без контекста —
-ноль строк. `current_setting(..., true)` при отсутствии переменной возвращает NULL, условие
-даёт NULL, политика не пропускает. **Забытый `SET LOCAL` не открывает данные, а закрывает
-их** — отказ в закрытую, а не утечка.
+**Verified end to end on a live database:** with the context, one row of one's own is visible;
+without it, zero rows. `current_setting(..., true)` returns NULL when the variable is absent, the
+condition gives NULL, and the policy does not let the row through. **A forgotten `SET LOCAL` does
+not open the data, it closes it**: fail closed, not a leak.
 
-**Итог по безопасности.** Авторизация живёт в репозиториях против сессии Privy, а RLS
-остаётся вторым рубежом: дыра в серверном коде не превращается автоматически в утечку чужих
-ставок. Плюс правило ESLint, запрещающее тащить модуль подключения в клиентские компоненты.
+**Security summary.** Authorisation lives in the repositories against the Privy session, and RLS
+remains the second line: a hole in server code does not automatically become a leak of other
+people's bets. Plus an ESLint rule forbidding the connection module from being pulled into client
+components.
 
-Формализовать роль и политики в миграции `0001` (сейчас роль создана вручную при проверке).
+To formalise the role and policies in migration `0001` (the role is currently created by hand
+during the check).
 
-Отменяет: T0.15 и часть T2.1/T2.5 в `docs/09` в их текущем виде.
+Reverses: T0.15 and part of T2.1/T2.5 in `docs/09` in their current form.
 
 ---
 
-### Вход: почта по умолчанию, кошелёк — когда он реально есть
+### Sign-in: email by default, wallet when there really is one
 
-**Решение.** Оба способа включены. Что показывать первым — зависит от окружения, а не выбрано
-раз и навсегда. Встроенный кошелёк создаётся только тем, кто пришёл без своего
+**Decision.** Both methods are enabled. What to show first depends on the environment, and is not
+chosen once and for all. The built-in wallet is created only for those who arrived without one
 (`create_on_login: "users-without-wallets"`).
 
-**Почему не кошелёк первым, хотя он быстрее.** Трафик идёт с рилса, то есть первое открытие
-происходит во **встроенном браузере инстаграма**: расширений там нет, а диплинк в приложение
-Phantom и обратно теряет вкладку и место во флоу. Почта в этом окружении работает всегда.
-Плюс на человека приходится минимум два ончейн-действия — со встроенным кошельком они
-подписываются на странице, с внешним каждое означает переключение в приложение и обратно.
+**Why not wallet first, even though it is faster.** Traffic comes from a reel, so the first open
+happens in the **Instagram in-app browser**: there are no extensions there, and a deeplink into
+the Phantom app and back loses the tab and the place in the flow. Email always works in this
+environment. Plus a person needs at least two on-chain actions: with a built-in wallet they are
+signed on the page, with an external one each means switching to the app and back.
 
-**Почему кошелёк всё же нужен.** У того, у кого Phantom уже стоит, почтовый код — лишний круг.
-И у него, в отличие от свежего встроенного кошелька, **уже есть USDC** — на мейннете это
-решает.
+**Why a wallet is still needed.** For someone who already has Phantom installed, an email code is
+an extra round. And they, unlike a fresh built-in wallet, **already have USDC**, which on mainnet
+decides it.
 
-| Окружение                     | Первым               | Почему                         |
-| ----------------------------- | -------------------- | ------------------------------ |
-| Встроенный браузер инстаграма | почта                | кошелька нет, диплинк ломается |
-| Мобильный браузер             | почта, кошелёк рядом | тот же диплинк                 |
-| Десктоп с расширением         | кошелёк              | один клик против письма        |
+| Environment               | First                | Why                        |
+| ------------------------- | -------------------- | -------------------------- |
+| Instagram in-app browser  | email                | no wallet, deeplink breaks |
+| Mobile browser            | email, wallet nearby | the same deeplink          |
+| Desktop with an extension | wallet               | one click versus an email  |
 
-**На архитектуру не влияет.** Privy выдаёт свой DID при любом способе входа, а именно DID идёт
-в `app.user_id` для RLS. Решение обратимое и меняется по данным, а не по догадке.
+**No effect on architecture.** Privy issues its own DID for any sign-in method, and that DID is
+what goes into `app.user_id` for RLS. The decision is reversible and changes on data, not on a
+guess.
 
-**Сделано 2026-09-03:** `solana_wallet_auth` включён, вход через Phantom работает.
-`show_wallet_login_first` оставлен `false` — почта первой по причинам выше.
+**Done 2026-09-03:** `solana_wallet_auth` is enabled, sign-in through Phantom works.
+`show_wallet_login_first` is left `false`: email first, for the reasons above.
 
-**Про API Privy, на будущее.** Настройки приложения меняются **`POST`** на
-`/api/v1/apps/<id>`; `PATCH` там отдаёт 405, `/settings` и `/config` — 404. В документации
-не нашёл, определено перебором. После записи обязательно читать конфиг обратно: код ответа
-не доказывает, что изменилось именно то поле, которое посылали.
-
----
-
-### Комиссия судье — 1% из наших 3%
-
-**Решение.** Судья, который **реально вынес решение**, получает 1% от чистого выигрыша.
-Комиссия для пользователя не меняется никогда: спора не было — 3% нам; судья рассудил —
-2% нам, 1% ему. На ничьей и на сдержанном Commit судье ноль.
-
-**Почему.** У судьи не было ни одной причины открыть ссылку. Его выбирает создатель на 4-м
-экране, ещё до согласия второй стороны, а узнаёт он о своей роли только если случился спор —
-то есть недели спустя. Мы просили бесплатную работу у человека, который на неё не подписывался.
-
-Платим только за вынесенное решение: судья, названный в споре, которого не произошло, работы
-не сделал. Иначе мы облагаем налогом каждую ставку ради сервиса, которым почти никто не
-пользуется.
-
-Из комиссии, а не сверх — иначе «3% и больше ничего» перестаёт быть правдой.
-
-**Побочный эффект.** Платный судья — стимул к сговору «судья плюс одна сторона пополам».
-При 1% с чистого выигрыша это $0.20 на ставке в $20, ради такого никто договариваться не
-станет. На больших суммах пересчитать.
-
-**Код.** `REFEREE_FEE_SHARE_BPS` в `constants.ts`; `Settlement.toReferee` и
-`SettlementInput.ruledByReferee` в `money/settlement.ts`. Инвариант `toTreasury + toReferee ===
-fee` под тестом.
+**About the Privy API, for the future.** App settings are changed by **`POST`** to
+`/api/v1/apps/<id>`; `PATCH` returns 405 there, and `/settings` and `/config` return 404. I did not
+find it in the documentation; determined by trial. After writing, always read the config back: the
+response code does not prove that the field you sent is the one that changed.
 
 ---
 
-### Молчание судьи оставляет заявку в силе
+### Referee fee: 1% out of our 3%
 
-**Решение.** Спор, который судья не рассудил за 7 дней, завершается **в пользу заявившего**,
-а не возвратом обоим. Спорщик теряет залог.
+**Decision.** A referee who **actually issued a ruling** gets 1% of the net win. The user's fee
+never changes: no dispute means 3% to us; a referee ruled means 2% to us, 1% to them. On a draw
+and on a kept Commit the referee gets zero.
 
-**Почему.** Возврат делал спор бесплатным опционом: проигрывающий жмёт «не согласен», ждёт,
-пока друг-судья забьёт, и забирает своё. Соблазн максимален ровно тогда, когда судьи
-ненадёжны. Теперь молчание везде в продукте значит одно и то же — возражение не поддержано.
+**Why.** The referee had no reason to open the link at all. The creator chooses them on screen 4,
+before the second side agrees, and they learn of their role only if a dispute happened, that is,
+weeks later. We were asking for free work from a person who had not signed up for it.
 
-**Обратный риск.** Создатель называет судью, который точно не придёт, и заявляет ложную
-победу. Держится на двух вещах: судья виден на карточке **до** того, как второй вносит деньги
-(принял — значит согласился с судьёй), и на предыдущем решении — судье теперь платят, у него
-есть причина прийти.
+We pay only for an issued ruling: a referee named in a bet where no dispute occurred did no work.
+Otherwise we would be taxing every bet for a service almost nobody uses.
 
-**Код.** Отдельное действие `settleUnrefereed` (пермиссионлесс) вместо `refundExpired` в
-`state/machine.ts`. Исход тот же — `resolved`, — но в аудите видно, что именно случилось:
-никто не возразил или возразили, а судья не пришёл. Для он-чейн программы это будут разные
-инструкции.
+Out of the fee, not on top of it; otherwise "3% and nothing else" stops being true.
 
----
+**Side effect.** A paid referee is an incentive for collusion, "referee plus one side, split
+fifty-fifty". At 1% of the net win that is $0.20 on a $20 bet, and no one will conspire for that.
+On larger amounts, recompute.
 
-### Залог за спор не возвращается без разбирательства
-
-**Решение.** Залог возвращается спорщику, только если судья **вынес решение** и оно не против
-него (победа его стороны или ничья). Без разбирательства — уходит второй стороне.
-
-**Почему.** `bondRouting` трактовал `winner === null` как «спор был обоснован» и возвращал
-залог. Но `winner === null` покрывало два разных случая: объявленную судьёй ничью и рефанд без
-разбирательства. Во втором залог возвращать нельзя — иначе спор ничего не стоит.
-
-Найдено субагентом при разборе системы доказательств, проверено по коду вручную.
-
-**Оговорка.** Спорщик с настоящей претензией и пропавшим судьёй теряет $1–25. Симметричной
-альтернативы нет: вернуть залог — значит сделать спор бесплатным.
-
-**Код.** `bondRouting` принимает `outcome`, а не только `winner`, в `money/settlement.ts`.
+**Code.** `REFEREE_FEE_SHARE_BPS` in `constants.ts`; `Settlement.toReferee` and
+`SettlementInput.ruledByReferee` in `money/settlement.ts`. The invariant `toTreasury + toReferee ===
+fee` is covered by a test.
 
 ---
 
-### Dare убран из UI
+### The referee's silence leaves the claim standing
 
-**Решение.** Форматов два: **Bet** и **Commit**. Dare припаркован.
+**Decision.** A dispute that the referee has not ruled on within 7 days ends **in favour of the
+claimant**, not with a refund to both. The disputer loses the bond.
 
-**Почему.** Три формата превращали первый экран в задачу, и Dare — тот, который люди не могли
-разместить у себя в голове.
+**Why.** A refund made a dispute a free option: the losing side presses "disagree", waits for the
+friend-referee to drop the ball, and takes their stake back. The temptation is greatest exactly
+when referees are unreliable. Now silence means one thing everywhere in the product: the objection
+is not upheld.
 
-**Что важно.** Механика эскроу у Commit и Dare одинаковая — `calculateSettlement` их не
-различал вовсе. Отличались одной точкой: `successClaimantSide` — в Commit успех заявляет
-автор, в Dare цель. Возврат: строка в `BET_FORMATS`, запись в `FORMAT_COPY` и по одной ветке
-в `successClaimantSide`, `contract-sentence`, `MoneyFlow`. Деньги трогать не придётся.
+**The reverse risk.** The creator names a referee who surely will not come and makes a false claim
+of victory. It rests on two things: the referee is visible on the card **before** the second side
+puts money in (accepted means agreed to the referee), and on the previous decision: the referee is
+now paid, so they have a reason to come.
 
----
-
-### «They risk nothing» — убрано как ложное утверждение
-
-**Решение.** Копирайт описывает, **что каждая сторона вносит**, а не её полную подверженность
-риску.
-
-**Почему.** Сторона без стейка всё равно может потерять деньги: залог за спор уходит
-противоположной стороне, если судья не согласился со спорщиком. «Рискует ничем» — не описка,
-а неверное утверждение о продукте.
-
-**Код.** Регрессионный тест в `text/copy.test.ts` проходит по всем строкам копирайта и падает
-на `/risks? nothing/i` и `/nothing (at stake|to lose)/i`. Добавлен `TRUST_COPY.disputeBond`,
-выведен на экран судьи.
+**Code.** A separate action `settleUnrefereed` (permissionless) instead of `refundExpired` in
+`state/machine.ts`. The outcome is the same, `resolved`, but the audit shows what exactly
+happened: nobody objected, or they objected and the referee did not come. For the on-chain program
+these will be different instructions.
 
 ---
 
-### Подпись вместо press-and-hold
+### The dispute bond is not returned without a ruling
 
-**Решение.** Ставку подписывают пальцем. Hold-to-lock с экрана создания убран.
+**Decision.** The bond is returned to the disputer only if the referee **issued a ruling** and it
+is not against them (a win for their side, or a draw). Without a ruling it goes to the other side.
 
-**Почему.** Оба — намеренное трение, но только одно оставляет артефакт. Закорючка уходит на
-карточку и в OG-картинку, а это весь growth loop. `HoldButton` не выброшен — он правильный
-контрол для необратимых действий в M2/M3: заявить победу, открыть спор, вернуть деньги.
+**Why.** `bondRouting` treated `winner === null` as "the dispute was justified" and returned the
+bond. But `winner === null` covered two different cases: a draw declared by the referee and a
+refund without a ruling. In the second the bond must not be returned, or a dispute costs nothing.
 
-**Как хранится.** Точками штрихов, не картинкой: satori рисует `<path>`, но не умеет вставить
-canvas-блоб; пара сотен целых чисел против десятков килобайт PNG; не мылится нигде.
-`signatureCanonicalString()` даёт стабильную форму, чтобы в M3 подпись зашилась в `termsHash`.
+Found by a subagent while reviewing the evidence system, verified against the code by hand.
 
-**Границы.** Не электронная подпись, юридической силы не имеет — тест падает на
-`legally binding` и `e-signature`. Ввод имени с клавиатуры — равноправный путь, иначе гейт
-отрезает всех, кто не может пользоваться указателем.
+**Caveat.** A disputer with a genuine complaint and a vanished referee loses $1–25. There is no
+symmetric alternative: returning the bond makes the dispute free.
 
----
-
-### Пул на пул, а не один против пула (фаза 2)
-
-**Решение.** Групповой режим — **команда против команды**. Уточнение: раньше в спеке стояли
-«групповые пулы», и это читалось как «один бросает вызов, N желающих скидываются против него».
-
-**Что переживает переход.** `stakeCreator`/`stakeOpponent` — уже суммы **стороны**, а не
-человека, и `calculateSettlement` считает по итогам сторон. Комиссия и стейт-машина не
-меняются. Менять придётся `Bet.creator`/`Bet.opponent`: сейчас по одному `Party`, станут
-списками с долями.
-
-**Открыто, до ответа домен не трогаем.** Равные ставки внутри команды или свободные; как
-закрывается пул; кто подтверждает результат за команду.
+**Code.** `bondRouting` takes `outcome`, not just `winner`, in `money/settlement.ts`.
 
 ---
 
-### Шрифты — self-hosted, не `next/font`
+### Dare removed from the UI
 
-**Решение.** `tools/fetch-fonts.py` качает Unbounded и IBM Plex Mono в `public/fonts`.
+**Decision.** There are two formats: **Bet** and **Commit**. Dare is parked.
 
-**Почему.** В `tokens.ts` лежат **литеральные** имена семейств. `next/font` переименовывает их
-в хешированные (`__Unbounded_a1b2c3`), и каждый инлайн-стиль в `@sporim/ui` тихо свалился бы
-на fallback. Литеральные имена нужны и для satori.
+**Why.** Three formats turned the first screen into a task, and Dare was the one people could not
+place in their heads.
+
+**What matters.** The escrow mechanics of Commit and Dare are the same: `calculateSettlement` did
+not distinguish them at all. They differed in one point, `successClaimantSide`: in Commit the author
+claims success, in Dare the target does. Restoring it: a row in `BET_FORMATS`, an entry in
+`FORMAT_COPY` and one branch each in `successClaimantSide`, `contract-sentence`, `MoneyFlow`. The
+money does not need touching.
+
+---
+
+### "They risk nothing" removed as a false statement
+
+**Decision.** The copy describes **what each side puts in**, not their full exposure to risk.
+
+**Why.** A side with no stake can still lose money: the dispute bond goes to the opposite side if
+the referee did not agree with the disputer. "Risks nothing" is not a slip but a wrong statement
+about the product.
+
+**Code.** A regression test in `text/copy.test.ts` walks through every copy line and fails on
+`/risks? nothing/i` and `/nothing (at stake|to lose)/i`. `TRUST_COPY.disputeBond` was added and
+shown on the referee screen.
+
+---
+
+### A signature instead of press-and-hold
+
+**Decision.** The bet is signed with a finger. Hold-to-lock is removed from the creation screen.
+
+**Why.** Both are deliberate friction, but only one leaves an artifact. The scribble goes onto the
+card and into the OG image, and that is the entire growth loop. `HoldButton` was not thrown away:
+it is the right control for irreversible actions in M2/M3: claim a win, open a dispute, refund.
+
+**How it is stored.** As stroke points, not as an image: satori draws `<path>` but cannot embed a
+canvas blob; a couple of hundred integers against tens of kilobytes of PNG; it does not blur
+anywhere. `signatureCanonicalString()` gives a stable form so that in M3 the signature can be
+sewn into `termsHash`.
+
+**Limits.** It is not an electronic signature and has no legal force: a test fails on `legally
+binding` and `e-signature`. Typing a name on the keyboard is an equal path, or the gate cuts off
+everyone who cannot use a pointer.
+
+---
+
+### Pool against pool, not one against a pool (phase 2)
+
+**Decision.** The group mode is **team against team**. A clarification: earlier the spec said
+"group pools", which read as "one person throws down a challenge, N others chip in against them".
+
+**What survives the transition.** `stakeCreator`/`stakeOpponent` are already amounts of a **side**,
+not of a person, and `calculateSettlement` counts by the outcomes of sides. The fee and the state
+machine do not change. What has to change is `Bet.creator`/`Bet.opponent`: now one `Party` each,
+they will become lists with shares.
+
+**Open; the domain is not touched until answered.** Equal stakes within a team or free ones; how
+the pool closes; who confirms the result for a team.
+
+---
+
+### Fonts: self-hosted, not `next/font`
+
+**Decision.** `tools/fetch-fonts.py` downloads Unbounded and IBM Plex Mono into `public/fonts`.
+
+**Why.** `tokens.ts` holds **literal** family names. `next/font` renames them to hashed ones
+(`__Unbounded_a1b2c3`), and every inline style in `@sporim/ui` would quietly fall back. The
+literal names are needed for satori too.
 
 ---
 
 ## 2026-09-02
 
-| Решение                                                            | Почему                                                         |
-| ------------------------------------------------------------------ | -------------------------------------------------------------- |
-| **Пивот:** не будильник, а любые споры между друзьями              | Будильник — один шаблон, а не продукт                          |
-| **Solana**                                                         | Работать приятнее; другие сети потом                           |
-| **Обязательства first**, внешние события через оракулы позже       | Исход контролирует участник — это не ставка на событие         |
-| **Резолюция:** взаимное подтверждение + судья-друг; AI-судья в 1.1 | Дешевле всего и соответствует тому, как люди спорят            |
-| **Web-first Next.js**, не натив и не мини-аппка                    | Ссылка открывается везде, ставить нечего                       |
-| **1v1 в MVP**, групповое следом                                    | Меньше поверхность                                             |
-| **Комиссия 3% с чистого выигрыша**, никогда с возврата             | Сдержанный Commit стоит $0 — иначе продукт наказывает за успех |
-| **Дизайн: вариант B «Acid Arena»**                                 | Из трёх направлений на канвасе                                 |
-| **Инлайн-стили в `@sporim/ui`** вместо CSS-классов                 | Те же компоненты рендерит satori для OG-картинки               |
+| Decision                                                                     | Why                                                                |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| **Pivot:** not an alarm clock, but any disputes between friends              | An alarm clock is one template, not a product                      |
+| **Solana**                                                                   | More pleasant to work with; other chains later                     |
+| **Commitments first**, external events through oracles later                 | A participant controls the outcome, so it is not a bet on an event |
+| **Resolution:** mutual confirmation + a friend as referee; AI referee in 1.1 | Cheapest, and matches how people argue                             |
+| **Web-first Next.js**, not native and not a mini-app                         | A link opens everywhere, nothing to install                        |
+| **1v1 in the MVP**, group next                                               | Smaller surface                                                    |
+| **Fee 3% of the net win**, never of a refund                                 | A kept Commit costs $0, or the product punishes success            |
+| **Design: option B "Acid Arena"**                                            | Out of three directions on the canvas                              |
+| **Inline styles in `@sporim/ui`** instead of CSS classes                     | The same components are rendered by satori for the OG image        |

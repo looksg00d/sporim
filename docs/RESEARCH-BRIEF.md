@@ -1,229 +1,232 @@
-# Что стоит нарыть до того, как я это напишу
+# What to dig up before I write this
 
-Это бриф для внешнего ресёрча, не отчёт. Каждый блок — вопрос, на который у меня
-сейчас нет ответа из первоисточника, и который дешевле закрыть чужим кодом, чем
-своим. Возвращайся с любым объёмом: ссылки, куски кода, скриншоты, цитаты из
-доков — я сведу это в `docs/DECISIONS.md` и в код.
+This is a brief for outside research, not a report. Each block is a question I
+can't yet answer from a primary source, and that is cheaper to close with someone
+else's code than with my own. Come back with any amount: links, code snippets,
+screenshots, quotes from docs. I'll fold it into `docs/DECISIONS.md` and the code.
 
-**Чего здесь нет:** продуктового ресёрча. Он уже сделан — `docs/01`…`docs/11`
-(разбор Forfeit, конкуренты, крипто-аналоги, боли, система пруфов, возвраты).
-Здесь только **инженерный** и **юридический** слой — тот самый шаг «сначала найди,
-кто это уже написал», который в моём процессе прописан, а по факту не выполнялся.
+**What's not here:** product research. It's already done, in `docs/01`…`docs/11`
+(Forfeit teardown, competitors, crypto analogues, pain points, proof system, return visits).
+This covers only the **engineering** and **legal** layer: the "first find out who
+already wrote this" step that my process prescribes but that didn't actually happen.
 
-Приоритет: **1 → 2 → 7** блокируют деньги. Остальное — параллельно.
+Priority: **1 → 2 → 7** block the money. The rest can run in parallel.
 
 ---
 
-## 1. Эскроу на Solana — главное, чего нет
+## 1. Escrow on Solana: the biggest thing we don't have
 
-Сейчас в проекте `chainMode=mock`: домен считает деньги точно, но на цепочке нет
-ничего. Это самый большой кусок, и ровно та задача, где чужой аудированный код
-лучше своего.
+Right now the project runs with `chainMode=mock`: the domain computes money exactly,
+but nothing exists on-chain. This is the biggest piece, and exactly the kind of task
+where someone else's audited code beats my own.
 
-**Вопросы:**
+**Questions:**
 
-- Есть ли готовая программа «два депозита + арбитр + дедлайн + возврат», которую
-  можно форкнуть, а не писать? Ключевое слово не «escrow», а **2-of-3 / arbiter /
+- Is there a ready-made "two deposits + referee + deadline + refund" program that
+  can be forked instead of written? The keyword isn't "escrow" but **2-of-3 / arbiter /
   mediator**.
-- Anchor или чистый native/Pinocchio? Anchor дороже по compute units, но аудитов
-  и примеров на порядок больше.
-- Как устроен возврат по таймауту без крона: кто платит за транзакцию, если обе
-  стороны молчат? Permissionless-крэнк, кто угодно дёргает и получает часть?
-- Rent и закрытие аккаунтов: кому уходит rent при закрытии эскроу-аккаунта.
-- Куда девать комиссию: отдельный treasury-аккаунт или сразу split в инструкции.
+- Anchor or plain native/Pinocchio? Anchor costs more in compute units, but has an
+  order of magnitude more audits and examples.
+- How does a timeout refund work without a cron: who pays for the transaction if both
+  sides stay silent? A permissionless crank that anyone can trigger and earn a cut from?
+- Rent and account closing: who receives the rent when the escrow account is closed.
+- Where the fee goes: a separate treasury account, or a split right in the instruction.
 
-**Откуда копать:**
+**Where to dig:**
 
-- `coral-xyz/anchor` — примеры в `tests/`, особенно escrow.
-- `solana-labs/solana-program-library` — token, associated-token-account.
-- `anza-xyz/kit` (бывший `@solana/web3.js` v2) — мы уже на нём, `@solana/kit@3`.
-- `Squads-Protocol` v4 — аудированный многоподписной кошелёк; интересна модель
-  «N участников, порог, таймлок», даже если брать только идеи.
+- `coral-xyz/anchor`: examples in `tests/`, especially escrow.
+- `solana-labs/solana-program-library`: token, associated-token-account.
+- `anza-xyz/kit` (formerly `@solana/web3.js` v2): we're already on it, `@solana/kit@3`.
+- `Squads-Protocol` v4: an audited multisig wallet; the "N members, threshold,
+  timelock" model is interesting even if we only take the ideas.
 - `gh search repos "solana escrow arbiter"`,
   `gh search code "arbiter" --language=rust`
-- **Отдельно:** есть ли по этим программам открытые аудиты (OtterSec, Neodyme,
-  Sec3). Отчёт по чужому эскроу читается за час и экономит неделю.
+- **Separately:** whether these programs have public audits (OtterSec, Neodyme,
+  Sec3). A report on someone else's escrow takes an hour to read and saves a week.
 
-**Что принести:** 2–3 кандидата с оценкой «сколько процентов нашей задачи
-закрывает», и ответ — есть ли среди них хоть один с аудитом.
-
----
-
-## 2. USDC на практике
-
-**Вопросы:**
-
-- Кто платит за создание ATA получателю, у которого его нет? Это реальная сумма,
-  и у нашего пользователя SOL может не быть вообще.
-- Есть ли у mainnet USDC freeze authority и что это значит для эскроу-аккаунта.
-  **Важный вопрос:** Circle может заморозить.
-- Token-2022 против классического SPL Token: USDC на чём, и не сломает ли
-  логика transfer hook наш расчёт.
-- Fee payer: можно ли платить комиссию за пользователя (relayer / fee payer
-  service), чтобы человек без SOL всё-таки мог поставить.
-- Есть ли sponsored transactions у Privy и на каких условиях.
-
-**Откуда:** доки Circle по USDC на Solana, доки Anza по Token-2022, доки Privy
-(`docs.privy.io`) по Solana и по спонсированию газа, Helius/Triton по fee payer.
-
-**Что принести:** прямые цитаты из доков, не пересказ. Особенно про freeze
-authority и про то, кто платит за ATA.
+**What to bring:** 2–3 candidates, each rated by "what percent of our task it
+covers", and an answer to whether any of them has an audit.
 
 ---
 
-## 3. Разрешение споров — чужие модели
+## 2. USDC in practice
 
-У нас сейчас: судья-человек, 1% из нашей комиссии, молчание судьи **оставляет
-заявку в силе**. Это решение принято рассуждением, не по прецеденту. Хочу
-проверить его чужим опытом.
+**Questions:**
 
-**Вопросы:**
+- Who pays to create the ATA for a recipient who doesn't have one? That's a real
+  amount, and our user may have no SOL at all.
+- Does mainnet USDC have a freeze authority, and what does that mean for the escrow
+  account? **Important question:** Circle can freeze.
+- Token-2022 versus classic SPL Token: which one is USDC on, and would transfer hook
+  logic break our settlement?
+- Fee payer: can we pay the fee on the user's behalf (relayer / fee payer
+  service), so a person without SOL can still stake?
+- Does Privy have sponsored transactions, and on what terms?
 
-- Как устроен **оптимистичный оракул**: заявка → окно на оспаривание → залог →
-  эскалация. Это ровно наша схема, но у них она обкатана на деньгах.
-- Каким берут залог за спор относительно ставки и почему именно таким.
-- Что делают, когда арбитр молчит. У нас — «заявка в силе». У них?
-- Схемы без третьей стороны вообще: взаимное подтверждение, commit-reveal,
-  «проигравший подтверждает — иначе автопроигрыш по таймауту».
+**Where from:** Circle docs on USDC on Solana, Anza docs on Token-2022, Privy docs
+(`docs.privy.io`) on Solana and gas sponsorship, Helius/Triton on fee payer.
 
-**Откуда:**
-
-- **UMA Optimistic Oracle** (`UMAprotocol/protocol`) и то, как его использует
-  Polymarket для разрешения рынков. Самый близкий аналог.
-- **Reality.eth / Realitio** (`RealityETH/monorepo`) — вопрос → ответ с залогом →
-  эскалация в Kleros.
-- **Kleros** (`kleros/kleros`) — децентрализованный арбитраж, суды присяжных.
-- Augur — мёртв, но разбор _почему_ полезен: слишком дорогое разрешение споров.
-
-**Что принести:** таблицу «кто → как берёт залог → что при молчании арбитра →
-сколько стоит разрешение». И отдельно — **известные способы это сломать**
-(griefing-атаки на оптимистичные оракулы): хочу проверить нашу схему против них.
+**What to bring:** direct quotes from the docs, not paraphrases. Especially on freeze
+authority and on who pays for the ATA.
 
 ---
 
-## 4. Приём по ссылке — тот, кто ещё никто
+## 3. Dispute resolution: other people's models
 
-Технически самый неприятный кусок: второй участник открывает ссылку, он ещё не
-участник спора, но должен получить право его принять. У нас это уже решено один
-раз — приглашение судьи через секрет в `set_config`, миграция `0004` — но хочется
-знать, как делают другие.
+What we have now: a human referee, 1% out of our fee, and referee silence **leaves
+the claim standing**. That decision came from reasoning, not from precedent. I want
+to check it against other people's experience.
 
-**Вопросы:**
+**Questions:**
 
-- Паттерны «неугадываемая ссылка = capability»: длина токена, срок жизни,
-  одноразовость, что делать при утечке ссылки.
-- Как не дать боту-превьюшнику «использовать» одноразовую ссылку: Telegram,
-  WhatsApp и Slack дёргают URL ради превью — это реальная проблема.
-- RLS-паттерны в Postgres для «авторизация по предъявленному секрету, а не по
-  сессии». Нужны именно чужие политики.
+- How an **optimistic oracle** works: claim → dispute window → bond →
+  escalation. This is exactly our scheme, but theirs is proven with real money.
+- What bond they take for a dispute relative to the stake, and why that size.
+- What they do when the arbiter is silent. For us it's "claim stands". For them?
+- Schemes with no third party at all: mutual confirmation, commit-reveal,
+  "the loser confirms, otherwise they auto-lose on timeout".
 
-**Откуда:** доки Supabase по RLS (лучшая подборка политик, даже если сама
-Supabase нам не нужна), исходники Cal.com и Documenso (ссылки-приглашения на
-подпись), `gh search code "invite_token" --language=sql`.
+**Where from:**
 
-**Что принести:** конкретные SQL-политики и решение проблемы превьюшников.
+- **UMA Optimistic Oracle** (`UMAprotocol/protocol`) and how Polymarket uses it to
+  resolve markets. The closest analogue.
+- **Reality.eth / Realitio** (`RealityETH/monorepo`): question → answer with a bond →
+  escalation to Kleros.
+- **Kleros** (`kleros/kleros`): decentralized arbitration, juror courts.
+- Augur is dead, but an analysis of _why_ is useful: dispute resolution was too
+  expensive.
 
----
-
-## 5. Карточка для шеринга — весь рост держится на ней
-
-Ссылка вставляется в чат. Разворачивается картинка. Это единственный канал роста.
-
-**Вопросы:**
-
-- `vercel/satori`: как люди решают вариативные шрифты. У Unbounded в
-  `google/fonts` **нет статических TTF**, а вариативный satori берёт дефолтным
-  начертанием — заголовок выйдет не тем весом. Инстансирование через `fonttools`
-  — известный путь, но хочу увидеть чужой рабочий скрипт.
-- Как выглядит превью в Telegram, WhatsApp, Instagram DM, iMessage: у всех разные
-  требования к размеру и разный кэш. Кто как решает инвалидацию.
-- Есть ли готовые OG-шаблоны, где рисуется **подпись как `<path>`** — у нас
-  подпись хранится точками именно ради satori.
-
-**Что принести:** рабочий скрипт инстансирования вариативного шрифта и таблицу
-требований мессенджеров.
+**What to bring:** a table of "who → how they take the bond → what happens when the
+arbiter is silent → how much resolution costs". And separately, the **known ways to
+break this** (griefing attacks on optimistic oracles): I want to test our scheme
+against them.
 
 ---
 
-## 6. Возвраты без пушей
+## 4. Accepting via link: the one who isn't anyone yet
 
-Продуктовая часть разобрана в `docs/11-coming-back.md`. Нужна техническая.
+Technically the nastiest piece: the second participant opens the link, isn't yet a
+party to the bet, but must get the right to accept it. We already solved this once,
+the referee invite through a secret in `set_config`, migration `0004`, but I'd like to
+know how others do it.
 
-**Вопросы:**
+**Questions:**
 
-- `.ics` в вебе: что реально работает на iOS Safari — скачивание файла календаря
-  из мобильного браузера исторически больное место.
-- Web Push на iOS: с какой версии, при каком условии (нужен ли add-to-home-screen)
-  и какая доля реально доходит.
-- Кто как делает «напоминание за час до дедлайна» без своего фонового воркера.
+- "Unguessable link = capability" patterns: token length, lifetime,
+  single use, what to do when a link leaks.
+- How to stop a link-preview bot from "using up" a single-use link: Telegram,
+  WhatsApp and Slack fetch the URL for previews, and it's a real problem.
+- RLS patterns in Postgres for "authorization by a presented secret, not by
+  session". We need other people's policies specifically.
 
----
+**Where from:** Supabase docs on RLS (the best collection of policies, even if we
+don't need Supabase itself), the Cal.com and Documenso source (signing invite
+links), `gh search code "invite_token" --language=sql`.
 
-## 7. Юридическое — блокирует запуск, а не код
-
-Блок, где я меньше всего могу помочь рассуждением и где ошибка дороже всего.
-
-**Вопросы:**
-
-- Пари между двумя частными лицами с эскроу у третьей стороны — это **азартная
-  игра** или нет? Ответ разный по юрисдикциям и по тому, берём ли мы комиссию.
-  **Мы берём 3%** — вероятно, это ключевой факт.
-- Skill против chance: «пробежишь ли ты 10 км» — пари на исход или commitment
-  contract? StickK работает годами и берёт деньги — на каком основании.
-- Money transmitter / MSB: держание чужих средств в эскроу. Non-custodial
-  (программа на цепочке, ключи у пользователя) — снимает ли это вопрос.
-- Что написано в ToS у Forfeit и подобных; на какую юрисдикцию инкорпорированы.
-- App Store и Google Play — если когда-нибудь понадобится приложение: их правила
-  по real-money gaming жёстче закона.
-
-**Откуда:** ToS самих продуктов (StickK, Beeminder, Forfeit), guidance FinCEN по
-MSB, UK Gambling Commission по betting between individuals, разборы юрфирм по
-prediction markets после истории Polymarket и Kalshi.
-
-**Что принести:** не юридическое заключение, а список рисков и то, как их
-формулируют те, кто уже работает. Особенно — **чем именно 3% комиссии меняют
-картину** и есть ли модель, где комиссия берётся иначе (подписка, платный судья),
-чтобы этого избежать.
+**What to bring:** concrete SQL policies and a fix for the link-preview problem.
 
 ---
 
-## 8. Privy и вход
+## 5. The share card: all growth rides on it
 
-**Вопросы:**
+The link is pasted into a chat. An image unfurls. That is the only growth channel.
 
-- Как выглядит вход из **встроенного браузера Instagram** — это наш основной
-  трафик. Почта работает, а что с кошельками: deep link в Phantom теряет вкладку.
-  Кто как это чинит.
-- Экспорт встроенного кошелька: что человек реально может унести.
-- Стоимость Privy на объёме, лимиты бесплатного тарифа.
-- Альтернативы, если упрёмся: Dynamic, Turnkey, Web3Auth — сравнение по тому же
-  сценарию «инстаграмный вебвью».
+**Questions:**
 
----
+- `vercel/satori`: how people handle variable fonts. Unbounded in
+  `google/fonts` has **no static TTFs**, and satori takes a variable font at its default
+  weight, so the headline comes out at the wrong weight. Instancing via `fonttools`
+  is the known route, but I want to see someone else's working script.
+- What the preview looks like in Telegram, WhatsApp, Instagram DM, iMessage: each has
+  different size requirements and a different cache. Who handles invalidation, and how.
+- Are there ready-made OG templates that draw the **signature as a `<path>`**? Ours is
+  stored as points precisely for satori.
 
-## 9. Продуктовые аналоги вне крипты
-
-Не ради механики, а ради **формулировок**. Половина нашей работы — сказать
-человеку правду про его деньги так, чтобы он не испугался.
-
-- **StickK** — commitment contracts, судья («supporter»), деньги идут
-  анти-благотворительности. Их формулировки про судью — прямо наш случай.
-- **Beeminder** — «оступился → платишь». Как объясняют деньги.
-- **Forfeit** — разобран в `docs/02`, но их ToS и онбординг не читались.
-
-**Что принести:** скриншоты экранов, где объясняются деньги и роль судьи.
+**What to bring:** a working script that instances a variable font and a table of
+messenger requirements.
 
 ---
 
-## Как отдать результат
+## 6. Return visits without push
 
-Клади куда удобно — `docs/research/` или своя папка. Формат безразличен: сырые
-выгрузки, ссылки списком, куски кода. Полезнее всего:
+The product side is covered in `docs/11-coming-back.md`. This is the technical side.
 
-1. **Ссылка плюс одна строка «что именно тут полезно»** — этого достаточно,
-   дальше я прочитаю сам.
-2. **Прямые цитаты из документации** там, где вопрос фактический: freeze
-   authority, кто платит за ATA, iOS Web Push. Пересказ здесь хуже цитаты.
-3. **Отрицательный результат — тоже результат.** «Искал эскроу с арбитром на
-   Solana, аудированного нет» меняет план: значит, пишем сами и закладываем время
-   на аудит.
+**Questions:**
+
+- `.ics` on the web: what actually works on iOS Safari. Downloading a calendar
+  file from a mobile browser has historically been a sore spot.
+- Web Push on iOS: from which version, under what condition (is add-to-home-screen
+  required), and what share actually gets delivered.
+- How others do "reminder an hour before the deadline" without their own background worker.
+
+---
+
+## 7. Legal: blocks launch, not code
+
+The block where I can help least by reasoning and where a mistake costs the most.
+
+**Questions:**
+
+- Is a bet between two private individuals with escrow held by a third party a
+  **game of chance** or not? The answer differs by jurisdiction and by whether we
+  take a fee. **We take 3%**, which is probably the key fact.
+- Skill versus chance: "will you run 10 km" is a bet on an outcome or a commitment
+  contract? StickK has run for years and takes money. On what basis?
+- Money transmitter / MSB: holding other people's funds in escrow. Does non-custodial
+  (an on-chain program, keys held by the user) remove the issue?
+- What Forfeit and similar products say in their ToS, and which jurisdiction they're
+  incorporated in.
+- App Store and Google Play, if we ever need an app: their rules on
+  real-money gaming are stricter than the law.
+
+**Where from:** the ToS of the products themselves (StickK, Beeminder, Forfeit), FinCEN
+guidance on MSBs, the UK Gambling Commission on betting between individuals, law-firm
+write-ups on prediction markets after the Polymarket and Kalshi history.
+
+**What to bring:** not a legal opinion, but a list of risks and how those already
+operating phrase them. In particular, **exactly how the 3% fee changes the
+picture** and whether there is a model where the fee is taken differently (subscription,
+paid referee) to avoid it.
+
+---
+
+## 8. Privy and sign-in
+
+**Questions:**
+
+- What sign-in looks like from the **Instagram in-app browser**, which is our main
+  traffic. Email works, but what about wallets: a deep link into Phantom loses the tab.
+  Who fixes this, and how.
+- Embedded wallet export: what a person can actually take with them.
+- Privy's cost at volume, free-tier limits.
+- Alternatives if we hit a wall: Dynamic, Turnkey, Web3Auth, compared on the same
+  "Instagram webview" scenario.
+
+---
+
+## 9. Product analogues outside crypto
+
+Not for the mechanics, but for the **wording**. Half our job is telling
+a person the truth about their money so that it doesn't scare them.
+
+- **StickK**: commitment contracts, a referee ("supporter"), money goes to an
+  anti-charity. Their wording about the referee is exactly our case.
+- **Beeminder**: "slip up → you pay". How they explain the money.
+- **Forfeit**: covered in `docs/02`, but we haven't read their ToS or onboarding.
+
+**What to bring:** screenshots of the screens that explain the money and the referee's role.
+
+---
+
+## How to hand over the results
+
+Put them wherever is convenient: `docs/research/` or your own folder. Format doesn't
+matter: raw dumps, link lists, code snippets. Most useful:
+
+1. **A link plus one line on "what exactly is useful here".** That's enough, I'll
+   read the rest myself.
+2. **Direct quotes from documentation** where the question is factual: freeze
+   authority, who pays for the ATA, iOS Web Push. A paraphrase is worse than a quote here.
+3. **A negative result is also a result.** "Looked for an escrow with an arbiter on
+   Solana, none audited" changes the plan: it means we write our own and budget time
+   for an audit.

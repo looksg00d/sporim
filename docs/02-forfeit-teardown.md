@@ -1,86 +1,86 @@
-# 02 · Forfeit — разбор продукта
+# 02 · Forfeit teardown
 
-**Сайт:** <https://www.forfeit.app/> · **iOS:** [Habit Contracts](https://apps.apple.com/us/app/forfeit-habit-contracts/id1633125787), [Habit Commitment](https://apps.apple.com/ca/app/forfeit-habit-commitment/id6760597781) · **Android:** [app.forfeit.forfeit](https://play.google.com/store/apps/details?id=app.forfeit.forfeit)
-**Компания:** Forfeit, Inc (2023), YC-backed. Платформы: iOS, Android, Mac (блокировка), web (Overlord).
+**Site:** <https://www.forfeit.app/> · **iOS:** [Habit Contracts](https://apps.apple.com/us/app/forfeit-habit-contracts/id1633125787), [Habit Commitment](https://apps.apple.com/ca/app/forfeit-habit-commitment/id6760597781) · **Android:** [app.forfeit.forfeit](https://play.google.com/store/apps/details?id=app.forfeit.forfeit)
+**Company:** Forfeit, Inc (2023), YC-backed. Platforms: iOS, Android, Mac (blocking), web (Overlord).
 
-## Механика в одном абзаце
+## Mechanics in one paragraph
 
-Пользователь задаёт **задачу + дедлайн + сумму**. Stripe делает **pre-authorization hold** на карте в момент
-коммита. До дедлайна нужно прислать **пруф**; его проверяет AI, спорное — живой человек. Нет пруфа / пруф не
-совпадает → hold **захватывается**, деньги ушли. 94 % задач выполняются (по данным Forfeit).
+The user sets a **task + deadline + amount**. Stripe places a **pre-authorization hold** on the card at the moment
+of commitment. Before the deadline the user must submit **proof**; AI checks it, and a live human handles disputed cases. No proof / proof
+doesn't match → the hold is **captured** and the money is gone. 94% of tasks are completed (per Forfeit).
 
-## Цифры (self-reported)
+## Numbers (self-reported)
 
-| Метрика            | Значение                   | Источник            |
-| ------------------ | -------------------------- | ------------------- |
-| Пользователи       | 20 000+                    | Google Play listing |
-| Задач (forfeits)   | 75 000+                    | Google Play listing |
-| Success rate       | 94 % (6 % провалов)        | Google Play / сайт  |
-| «Forfeits set»     | $8.7M                      | forfeit.app         |
-| Ошибки верификации | < 5 % провалов из-за пруфа | forfeit.app FAQ     |
-| Апелляция          | человек отвечает ≤ 12 ч    | forfeit.app FAQ     |
+| Metric              | Value                         | Source              |
+| ------------------- | ----------------------------- | ------------------- |
+| Users               | 20,000+                       | Google Play listing |
+| Tasks (forfeits)    | 75,000+                       | Google Play listing |
+| Success rate        | 94% (6% failures)             | Google Play / site  |
+| "Forfeits set"      | $8.7M                         | forfeit.app         |
+| Verification errors | < 5% of failures due to proof | forfeit.app FAQ     |
+| Appeal              | a human replies in ≤ 12 h     | forfeit.app FAQ     |
 
-## Методы верификации (полный список)
+## Verification methods (full list)
 
-| Метод                                         | Кто проверяет                               | Примеры                                                 |
-| --------------------------------------------- | ------------------------------------------- | ------------------------------------------------------- |
-| Photo                                         | AI (сверяет с описанием), спорное → человек | зал, inbox zero, таблетки, «фото с крыльца» для подъёма |
-| Video / Timelapse                             | человек                                     | медитация, уборка, работа 1 ч                           |
-| Self-Verify                                   | никто                                       | не курить, не пить                                      |
-| Friend-Verify                                 | друг-свидетель                              | что угодно                                              |
-| GPS check-in / avoid                          | авто                                        | быть в зале / не быть в баре                            |
-| Apple Health / Google Fit                     | авто                                        | шаги, тренировки, сон, вес                              |
-| Screen Time / Web tracking                    | авто                                        | лимит на TikTok; отключение трекинга = провал           |
-| RescueTime, Strava, Whoop, MyFitnessPal, Anki | авто                                        | интеграции                                              |
-| Pomodoro-таймер                               | авто                                        | фокус-сессии                                            |
-| Plaid (банковский фид)                        | авто                                        | штраф $64 за заказ DoorDash $32                         |
+| Method                                        | Who verifies                                           | Examples                                                     |
+| --------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------ |
+| Photo                                         | AI (matches against the description), disputed → human | gym, inbox zero, pills, "photo from the porch" for waking up |
+| Video / Timelapse                             | human                                                  | meditation, cleaning, 1 h of work                            |
+| Self-Verify                                   | nobody                                                 | no smoking, no drinking                                      |
+| Friend-Verify                                 | friend as witness                                      | anything                                                     |
+| GPS check-in / avoid                          | automatic                                              | be at the gym / stay out of the bar                          |
+| Apple Health / Google Fit                     | automatic                                              | steps, workouts, sleep, weight                               |
+| Screen Time / Web tracking                    | automatic                                              | TikTok limit; turning off tracking = failure                 |
+| RescueTime, Strava, Whoop, MyFitnessPal, Anki | automatic                                              | integrations                                                 |
+| Pomodoro timer                                | automatic                                              | focus sessions                                               |
+| Plaid (bank feed)                             | automatic                                              | $64 penalty for a $32 DoorDash order                         |
 
-## Строгость и апелляции
+## Strictness and appeals
 
-- Режимы **Lenient / Normal / Hard**. Hard — апелляции запрещены, «no way out».
-- Пользователь сам пишет инструкции для апелляций при создании задачи («принимать любые уважительные» vs «не принимать ничего»).
-- Правило нельзя смягчить посреди недели — только при создании.
+- **Lenient / Normal / Hard** modes. Hard: appeals are forbidden, "no way out".
+- The user writes their own appeal instructions when creating the task ("accept any valid excuse" vs "accept nothing").
+- The rule can't be softened mid-week, only at creation.
 
-## Что происходит с деньгами
+## What happens to the money
 
-- **По умолчанию деньги остаются у Forfeit.** Сайт: «For now it is retained by Forfeit. We are building an option to send forfeited money to friends or your own savings.» Часть источников пишет, что уже можно направить в charity или группе друзей.
-- Не-денежные последствия: смс/email другу, блокировка приложений, лок Mac.
-- ⚠️ Это главный источник недоверия и отличие от stickK (там деньги идут выбранному получателю/anti-charity).
+- **By default the money stays with Forfeit.** The site says: "For now it is retained by Forfeit. We are building an option to send forfeited money to friends or your own savings." Some sources say it is already possible to send it to charity or to a group of friends.
+- Non-monetary consequences: SMS/email to a friend, app blocking, Mac lock.
+- ⚠️ This is the main source of distrust and the difference from stickK (where the money goes to a chosen recipient / anti-charity).
 
-## Монетизация
+## Monetization
 
-| Что                 | Цена                                                                 |
-| ------------------- | -------------------------------------------------------------------- |
-| Скачать             | бесплатно                                                            |
-| Free tier           | до 3 активных контрактов                                             |
-| Forfeit Premium     | ~$7.99/мес (unlimited contracts, analytics, templates, Apple Health) |
-| Overlord (AI-агент) | ~$12.99/мес                                                          |
-| Проигранные ставки  | остаются у компании (доход)                                          |
+| What                | Price                                                               |
+| ------------------- | ------------------------------------------------------------------- |
+| Download            | free                                                                |
+| Free tier           | up to 3 active contracts                                            |
+| Forfeit Premium     | ~$7.99/mo (unlimited contracts, analytics, templates, Apple Health) |
+| Overlord (AI agent) | ~$12.99/mo                                                          |
+| Lost stakes         | stay with the company (revenue)                                     |
 
-Reddit r/getdisciplined: «It's a lot of money per month so I'm looking for an alternative» — **цена подписки = причина №1 ухода**. Forfeit не публикует цены на своём сайте.
+Reddit r/getdisciplined: "It's a lot of money per month so I'm looking for an alternative". **Subscription price is the #1 reason for leaving.** Forfeit doesn't publish prices on its site.
 
-## Overlord — AI-надзиратель
+## Overlord, the AI overseer
 
-Чат 24/7, звонит на подъём и перед дедлайном, пишет друзьям при провале, 3-слойная память («ловит на
-повторных отмазках»), блокирует приложения/сайты, читает GPS/экран/траты/здоровье, сам списывает деньги.
-Это их «moat» второго поколения: от «пруф по запросу» к «постоянный мониторинг».
+24/7 chat, calls to wake you up and before the deadline, messages friends on failure, 3-layer memory ("catches repeated
+excuses"), blocks apps/sites, reads GPS/screen/spending/health, and charges the money itself.
+This is their second-generation moat: from "proof on request" to "constant monitoring".
 
-## Сильные стороны → что забираем
+## Strengths → what we take
 
-1. Пруф-first (evidence вместо честного слова) — единственная защита от самообмана.
-2. Stripe pre-auth hold — деньги «уже не твои» с момента коммита. В крипте это **escrow в смарт-контракте** — даже честнее.
-3. Апелляции + leniency modes — снимают страх «телефон сел».
-4. Onboarding = первый контракт за 5 экранов.
+1. Proof-first (evidence instead of a word of honor), the only defense against self-deception.
+2. Stripe pre-auth hold: the money is "no longer yours" from the moment of commitment. In crypto this is an **escrow in a smart contract**, which is even more honest.
+3. Appeals + leniency modes remove the "my phone died" fear.
+4. Onboarding = first contract in 5 screens.
 
-## Слабые стороны → где наш шанс
+## Weaknesses → our opening
 
-1. **Деньги уходят компании** → конфликт интересов («им выгодно, чтобы ты провалился»). Крипто: пул проигравших → победителям, прозрачно on-chain.
-2. **Подписка $8–13/мес** поверх ставок → ноль подписки, только % с пула / yield.
-3. **Страновые ограничения** карт/Stripe → кошелёк работает везде (RU/CIS, LATAM, Азия).
-4. **Непрозрачная верификация** (человек с усталостью, по словам сооснователя на форуме Beeminder) → открытый оракул + публичный лог решений.
-5. Нет социального слоя ставок «друг против друга» — только соло.
+1. **The money goes to the company** → conflict of interest ("they profit when you fail"). Crypto: the losers' pool → winners, transparent on-chain.
+2. **$8–13/mo subscription** on top of the stakes → zero subscription, only a % of the pool / yield.
+3. **Country restrictions** on cards/Stripe → a wallet works everywhere (RU/CIS, LATAM, Asia).
+4. **Opaque verification** (a human with fatigue, per a cofounder on the Beeminder forum) → open oracle + public decision log.
+5. No social layer of friend-vs-friend bets, solo only.
 
-## Источники
+## Sources
 
 - [forfeit.app](https://www.forfeit.app/) · [Google Play](https://play.google.com/store/apps/details?id=app.forfeit.forfeit)
 - [Accountablo — Forfeit & Overlord Review (2026)](https://www.accountablo.com/blog/forfeit-overlord-review)

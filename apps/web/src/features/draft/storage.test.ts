@@ -16,7 +16,7 @@ import {
 } from './storage';
 
 const FILLED: BetDraft = {
-  terms: 'Ты не пробежишь 10 км до воскресенья.',
+  terms: "You won't run 10 km by Sunday.",
   format: 'bet',
   stake: usdc(20),
   deadlineSeconds: 1_788_000_000,
@@ -151,10 +151,10 @@ describe('the signature survives a reload', () => {
   });
 
   it('round-trips a typed signature', () => {
-    const draft = { ...FILLED, signature: typedSignature('Дима') };
+    const draft = { ...FILLED, signature: typedSignature('Dima') };
     expect(deserializeDraft(serializeDraft(draft))?.signature).toEqual({
       kind: 'typed',
-      name: 'Дима',
+      name: 'Dima',
     });
   });
 

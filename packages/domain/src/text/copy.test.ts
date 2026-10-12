@@ -36,11 +36,11 @@ describe('contract sentence', () => {
       ...base,
       format: 'bet',
       decisionMode: 'referee',
-      opponentName: 'Даня',
-      refereeName: 'Аня',
+      opponentName: 'Dan',
+      refereeName: 'Anya',
     });
     expect(text).toBe(
-      "I bet Даня 20 USDC that he won't run 10 km. By Sun 23:59. Аня decides if we disagree. Winner takes 39.40 USDC after a 3% fee.",
+      "I bet Dan 20 USDC that he won't run 10 km. By Sun 23:59. Anya decides if we disagree. Winner takes 39.40 USDC after a 3% fee.",
     );
   });
 
@@ -49,7 +49,7 @@ describe('contract sentence', () => {
       ...base,
       format: 'bet',
       decisionMode: 'mutual',
-      opponentName: 'Даня',
+      opponentName: 'Dan',
     });
     expect(text).toContain('We both confirm the result.');
     expect(text).not.toContain('decides if we disagree');
@@ -61,11 +61,11 @@ describe('contract sentence', () => {
       terms: 'I finish the thesis',
       format: 'commit',
       decisionMode: 'referee',
-      refereeName: 'Аня',
-      beneficiaryName: 'Даня',
+      refereeName: 'Anya',
+      beneficiaryName: 'Dan',
     });
     expect(text).toContain('I commit: I finish the thesis.');
-    expect(text).toContain('goes to Даня');
+    expect(text).toContain('goes to Dan');
     // Keeping your word costs nothing, so no payout clause is shown.
     expect(text).not.toContain('after a 3% fee');
   });
@@ -90,10 +90,10 @@ describe('contract sentence', () => {
       ...base,
       format: 'bet',
       decisionMode: 'mutual',
-      opponentName: 'Даня',
+      opponentName: 'Dan',
     });
     const emphasised = parts.filter((p) => p.emphasis).map((p) => p.text);
-    expect(emphasised).toContain('Даня');
+    expect(emphasised).toContain('Dan');
     expect(emphasised).toContain('20 USDC');
   });
 });

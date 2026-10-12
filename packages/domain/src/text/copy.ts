@@ -12,13 +12,13 @@ export const FORMAT_COPY = {
     label: 'Bet',
     who: 'You both put money in.',
     onFail: 'Winner takes the pot.',
-    example: 'Ты не пробежишь 10 км до воскресенья.',
+    example: "You won't run 10 km by Sunday.",
   },
   commit: {
     label: 'Commit',
     who: 'Only you put money in.',
     onFail: 'Miss it and your stake goes to them.',
-    example: 'Я сдам диплом до 1 июня.',
+    example: "I'll hand in my thesis by June 1.",
   },
 } as const;
 

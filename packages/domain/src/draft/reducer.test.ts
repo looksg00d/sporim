@@ -199,9 +199,9 @@ describe('signing gates submission', () => {
 
   it('accepts a typed name — a drawn-only gate would exclude people', () => {
     const submittable = unwrap(
-      toSubmittable(filledDraft({ signature: typedSignature('Дима') }), NOW),
+      toSubmittable(filledDraft({ signature: typedSignature('Dima') }), NOW),
     );
-    expect(submittable.signature).toEqual({ kind: 'typed', name: 'Дима' });
+    expect(submittable.signature).toEqual({ kind: 'typed', name: 'Dima' });
   });
 
   it('reports the missing step before it reports the missing signature', () => {
