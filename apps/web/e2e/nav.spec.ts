@@ -57,3 +57,34 @@ test.describe('navigation', () => {
     await expect(page.getByRole('link', { name: 'My bets' })).toBeVisible();
   });
 });
+
+test.describe('how it works', () => {
+  test('the landing page’s second button leads somewhere', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('link', { name: 'How it works' }).click();
+    await expect(page).toHaveURL(/\/how-it-works$/);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('How it works');
+  });
+
+  test('every internal link on the landing page resolves', async ({ page, request }) => {
+    await page.goto('/');
+    const hrefs = await page
+      .locator('a[href^="/"]')
+      .evaluateAll((links) => links.map((a) => a.getAttribute('href') ?? ''));
+    for (const href of new Set(hrefs)) {
+      const response = await request.get(href);
+      expect(response.status(), href).toBeLessThan(400);
+    }
+  });
+
+  test('says the escrow is simulated before anything else, and uses none of the banned words', async ({
+    page,
+  }) => {
+    await page.goto('/how-it-works');
+    await expect(page.getByText(/escrow is simulated/i)).toBeVisible();
+    const text = (await page.locator('main').innerText()).toLowerCase();
+    for (const word of ['gamble', 'gambling', 'casino', 'jackpot', 'bookie', 'odds', 'wager']) {
+      expect(text, word).not.toMatch(new RegExp(`\b${word}\b`));
+    }
+  });
+});

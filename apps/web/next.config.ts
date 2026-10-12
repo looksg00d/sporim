@@ -9,6 +9,9 @@ const config: NextConfig = {
   transpilePackages: ['@sporim/ui', '@sporim/domain'],
   typescript: { ignoreBuildErrors: false },
   eslint: { ignoreDuringBuilds: true }, // the monorepo runs eslint itself, once, at the root
+  // The OG image reads its TTFs from disk at request time; a path built at runtime is one
+  // the tracer cannot see, so the fonts are named here or the function ships without them.
+  outputFileTracingIncludes: { '/b/**': ['./assets/og/**'] },
   // typedRoutes goes on in M1, once /new/* and /b/[id] actually exist.
 };
 

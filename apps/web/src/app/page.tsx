@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { TRUST_COPY, usdc } from '@sporim/domain';
 import {
   accentGlow,
@@ -13,6 +12,7 @@ import {
   typeStyle,
 } from '@sporim/ui';
 import { AppHeader } from '@/features/nav/AppHeader';
+import { OpenInPhantom } from '@/features/wallet/OpenInPhantom';
 import { env, isMockChain } from '@/lib/env';
 
 /*
@@ -81,6 +81,8 @@ export default async function HomePage() {
           </PillLink>
         </div>
 
+        <OpenInPhantom />
+
         <div
           style={{ display: 'flex', flexWrap: 'wrap', gap: space.xxl, alignItems: 'flex-start' }}
         >
@@ -116,10 +118,8 @@ export default async function HomePage() {
         <div style={{ flexGrow: 1 }} />
 
         <p style={{ margin: 0, ...typeStyle('micro'), color: color.inkFaint }}>
-          {env.appEnv} · chain: {env.chainMode} · fee {env.feeBps / 100}% ·{' '}
-          <Link href="/legal" style={{ color: color.inkSecondary }}>
-            Terms
-          </Link>
+          {/* No "Terms" link until there are terms: it pointed at a /legal that never existed. */}
+          {env.appEnv} · chain: {env.chainMode} · fee {env.feeBps / 100}%
         </p>
       </div>
     </main>

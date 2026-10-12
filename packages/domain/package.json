@@ -14,7 +14,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint src",
-    "vectors": "vitest run -u src/money/vectors.test.ts"
+    "vectors": "vitest run -u src/money/vectors.test.ts src/rules/constants-vectors.test.ts src/rules/transition-vectors.test.ts"
   },
   "dependencies": {
     "zod": "^4.5.4"

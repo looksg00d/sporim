@@ -14,9 +14,10 @@ import {
   typeStyle,
 } from '@sporim/ui';
 import { isMockChain } from '@/lib/env';
-import { formatDeadlineShort } from '@/lib/time';
+import { formatDeadlineShort, nowSeconds } from '@/lib/time';
 import { takeRefereeRole } from '@/server/actions/referee';
 import { currentPrivyDid } from '@/server/auth/session';
+import { deadlineOptions, viewerTimeZone, type DeadlineDisplay } from '@/server/time-zone';
 import {
   readRefereeInvite,
   type RefereeInvite,
@@ -114,9 +115,11 @@ function Line({ children }: { readonly children: ReactNode }) {
 function RefereeInviteScreen({
   invite,
   token,
+  dates,
 }: {
   readonly invite: RefereeInvite;
   readonly token: string;
+  readonly dates: DeadlineDisplay;
 }) {
   const { bet, status } = invite;
   const copy = STATUS_COPY[status];
@@ -160,7 +163,7 @@ function RefereeInviteScreen({
         ]}
         rows={standardRows({
           pot,
-          deadlineLabel: formatDeadlineShort(bet.deadlineSeconds),
+          deadlineLabel: formatDeadlineShort(bet.deadlineSeconds, dates),
           decidedBy: bet.referee?.displayName ?? 'you',
           escrowLabel: isMockChain ? 'Simulated' : 'Devnet escrow',
           refereeConfirmed: bet.referee?.confirmedAtSeconds !== null,
@@ -248,5 +251,6 @@ export default async function RefereeInvitePage({
   // an oracle for which invitations are real.
   if (!invite.ok) notFound();
 
-  return <RefereeInviteScreen invite={invite.value} token={token} />;
+  const dates = deadlineOptions(await viewerTimeZone(), nowSeconds());
+  return <RefereeInviteScreen invite={invite.value} token={token} dates={dates} />;
 }

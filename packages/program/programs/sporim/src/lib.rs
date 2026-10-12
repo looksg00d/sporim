@@ -1,6 +1,7 @@
 pub mod constants;
 pub mod error;
 pub mod instructions;
+pub mod rules;
 pub mod settlement;
 pub mod state;
 
@@ -12,8 +13,9 @@ pub use state::*;
 
 declare_id!("EkfT8PTE7QShwtK6F7NEDgC2M3i4cGnLZhurULPVtDP2");
 
-/// SPORIM, first devnet slice: the `Bet` format only — symmetric stakes, mutual confirmation,
-/// timeout settlement. No referee, no dispute, no `Commit`/beneficiary payout yet; see
+/// SPORIM on devnet: the `Bet` format only — symmetric stakes, mutual decision, timeout
+/// settlement, and a way out of every state (a disagreement refunds both; an abandoned bet
+/// refunds to anyone who asks). No referee, no `Commit`/beneficiary payout yet; see
 /// `constants.rs` and `docs/DECISIONS.md` for what that increment adds and why this one stops
 /// short of it on purpose.
 #[program]
@@ -52,5 +54,13 @@ pub mod sporim {
 
     pub fn settle_uncontested(ctx: Context<SettleUncontested>) -> Result<()> {
         instructions::settle_uncontested::handle_settle_uncontested(ctx)
+    }
+
+    pub fn dispute_claim(ctx: Context<DisputeClaim>) -> Result<()> {
+        instructions::dispute_claim::handle_dispute_claim(ctx)
+    }
+
+    pub fn refund_expired(ctx: Context<RefundExpired>) -> Result<()> {
+        instructions::refund_expired::handle_refund_expired(ctx)
     }
 }

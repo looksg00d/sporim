@@ -15,6 +15,7 @@ import { needsYou } from '@/features/bet/attention';
 import { whatHappensNext } from '@/features/bet/next-step';
 import { formatDeadlineShort, nowSeconds } from '@/lib/time';
 import { currentPrivyDid } from '@/server/auth/session';
+import { deadlineOptions, viewerTimeZone, type DeadlineDisplay } from '@/server/time-zone';
 import { listBetsForUser } from '@/server/db/bets.repo';
 
 /**
@@ -56,10 +57,12 @@ function Row({
   bet,
   role,
   now,
+  dates,
 }: {
   readonly bet: Bet;
   readonly role: ViewerRole;
   readonly now: number;
+  readonly dates: DeadlineDisplay;
 }) {
   const pot = addUsdc(bet.stakeCreator, bet.stakeOpponent);
 
@@ -107,13 +110,13 @@ function Row({
       </span>
 
       <span style={{ ...typeStyle('bodySm'), color: color.inkSecondary }}>
-        {whatHappensNext(bet, role, now)}
+        {whatHappensNext(bet, role, now, dates)}
       </span>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: space.sm }}>
         <span style={{ ...typeStyle('micro'), color: color.accent }}>{formatUsdc(pot)} USDC</span>
         <span style={{ ...typeStyle('micro'), color: color.inkFaint }}>
-          {formatDeadlineShort(bet.deadlineSeconds)}
+          {formatDeadlineShort(bet.deadlineSeconds, dates)}
         </span>
       </div>
     </Link>
@@ -168,6 +171,7 @@ export default async function MyBetsPage() {
   if (views.length === 0) return <Empty />;
 
   const now = nowSeconds();
+  const dates = deadlineOptions(await viewerTimeZone(), now);
   const decorated = views.map((view) => ({
     ...view,
     waiting: needsYou(allowedActions(view.bet, view.role, now)),
@@ -182,7 +186,7 @@ export default async function MyBetsPage() {
       {yours.length > 0 ? (
         <Section title={`YOUR MOVE · ${yours.length}`}>
           {yours.map(({ bet, role }) => (
-            <Row key={bet.id} bet={bet} role={role} now={now} />
+            <Row key={bet.id} bet={bet} role={role} now={now} dates={dates} />
           ))}
         </Section>
       ) : null}
@@ -190,7 +194,7 @@ export default async function MyBetsPage() {
       {rest.length > 0 ? (
         <Section title="EVERYTHING ELSE">
           {rest.map(({ bet, role }) => (
-            <Row key={bet.id} bet={bet} role={role} now={now} />
+            <Row key={bet.id} bet={bet} role={role} now={now} dates={dates} />
           ))}
         </Section>
       ) : null}

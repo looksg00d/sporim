@@ -2,11 +2,12 @@ use anchor_lang::prelude::*;
 
 use crate::constants::{BET_SEED, CLAIM_WINDOW_SECONDS};
 use crate::error::ErrorCode;
+use crate::rules::{require_allowed, Action, RuleInput};
 use crate::state::{Bet, BetState, Outcome};
 
-/// Either side may say how it went, once the deadline has passed. Mirrors `submitClaim`: no
-/// money moves here — this only opens the 48h window the other side has to confirm or, in a
-/// later increment, dispute.
+/// Either side may say how it went, once the deadline has passed and until the claim grace
+/// ends. Mirrors `submitClaim`: no money moves here — this only opens the 48h window the other
+/// side has to confirm or dispute.
 #[derive(Accounts)]
 pub struct SubmitClaim<'info> {
     pub signer: Signer<'info>,
@@ -20,15 +21,11 @@ pub struct SubmitClaim<'info> {
 }
 
 pub fn handle_submit_claim(ctx: Context<SubmitClaim>, outcome: Outcome) -> Result<()> {
-    require!(ctx.accounts.bet.state == BetState::Active, ErrorCode::InvalidState);
-
     let now = Clock::get()?.unix_timestamp;
-    require!(now >= ctx.accounts.bet.deadline, ErrorCode::DeadlineNotReached);
-
     let signer_key = ctx.accounts.signer.key();
-    let is_party =
-        signer_key == ctx.accounts.bet.creator || Some(signer_key) == ctx.accounts.bet.opponent;
-    require!(is_party, ErrorCode::NotAParty);
+    // The rules decide who and when: a party, after the deadline, before the grace ends.
+    let rule = RuleInput::for_bet(&ctx.accounts.bet, signer_key, now);
+    require_allowed(&rule, Action::SubmitClaim)?;
 
     ctx.accounts.bet.claim_outcome = Some(outcome);
     ctx.accounts.bet.claim_by = Some(signer_key);

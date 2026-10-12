@@ -23,6 +23,21 @@ pub const MIN_DEADLINE_LEAD_SECONDS: i64 = 15 * 60;
 pub const MAX_DEADLINE_LEAD_SECONDS: i64 = 365 * 86_400;
 pub const CLAIM_WINDOW_SECONDS: i64 = 48 * 3_600;
 
+/// Mirrors the domain's `CLAIM_GRACE_SECONDS`. After `deadline + CLAIM_GRACE_SECONDS` with no
+/// claim the bet is abandoned: nobody may claim it any more, and anybody may refund it. Checked
+/// against `constants.v1.json` by `tests/constants_parity.rs`.
+pub const CLAIM_GRACE_SECONDS: i64 = 14 * 86_400;
+
+/// The one token a bet may be made in: the devnet test mint (plan decision D3,
+/// `packages/chain/devnet.json`); USDC's mint replaces it for mainnet. Pinned because
+/// `create_bet` accepted any mint (review, 2026-09-24): a mint whose freeze authority the
+/// creator holds could freeze the vault after the other side paid in, and every terminal
+/// transition with it; a worthless look-alike could pose as USDC on a card.
+pub fn allowed_mint() -> Pubkey {
+    Pubkey::from_str("2SmKoxP42D8sj4rpiXwxQ1L6s2PswA7XuaLpVw74u6cc")
+        .expect("mint constant is a valid base58 pubkey")
+}
+
 /// Devnet-only admin/treasury wallet, generated for this milestone
 /// (`~/.config/solana/sporim/treasury.json`, never checked in). A real `Config` account replaces
 /// this with a settable value before mainnet — see the module doc above.

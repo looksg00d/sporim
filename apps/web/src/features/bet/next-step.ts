@@ -1,4 +1,4 @@
-import { formatDeadlineShort } from '@/lib/time';
+import { formatDeadlineShort, type DeadlineFormatOptions } from '@/lib/time';
 import type { Bet, ViewerRole } from '@sporim/domain';
 
 /**
@@ -18,7 +18,13 @@ import type { Bet, ViewerRole } from '@sporim/domain';
  *   * **Never promise the referee will answer.** Since 2026-09-04 their silence refunds, and
  *     saying so up front is the difference between a stalled bet and one that reads as theft.
  */
-export function whatHappensNext(bet: Bet, role: ViewerRole, now: number): string {
+export function whatHappensNext(
+  bet: Bet,
+  role: ViewerRole,
+  now: number,
+  /** The viewer's zone, from a server page. The clock is always `now`. */
+  format: Omit<DeadlineFormatOptions, 'nowSeconds'> = {},
+): string {
   const isParty = role === 'creator' || role === 'opponent';
 
   switch (bet.state) {
@@ -29,7 +35,7 @@ export function whatHappensNext(bet: Bet, role: ViewerRole, now: number): string
 
     case 'active':
       if (now < bet.deadlineSeconds) {
-        return `Running until ${formatDeadlineShort(bet.deadlineSeconds)}. Neither side can call it before then.`;
+        return `Running until ${formatDeadlineShort(bet.deadlineSeconds, { ...format, nowSeconds: now })}. Neither side can call it before then.`;
       }
       return isParty
         ? 'The deadline has passed. Say how it went.'

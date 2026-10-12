@@ -1,0 +1,45 @@
+{
+  "version": "sporim.constants.v1",
+  "values": [
+    {
+      "name": "FEE_BPS",
+      "value": 300,
+      "onChain": true
+    },
+    {
+      "name": "MIN_STAKE",
+      "value": "1000000",
+      "onChain": true
+    },
+    {
+      "name": "MAX_STAKE",
+      "value": "100000000",
+      "onChain": true
+    },
+    {
+      "name": "MIN_DEADLINE_LEAD_SECONDS",
+      "value": 900,
+      "onChain": true
+    },
+    {
+      "name": "MAX_DEADLINE_LEAD_SECONDS",
+      "value": 31536000,
+      "onChain": true
+    },
+    {
+      "name": "CLAIM_WINDOW_SECONDS",
+      "value": 172800,
+      "onChain": true
+    },
+    {
+      "name": "CLAIM_GRACE_SECONDS",
+      "value": 1209600,
+      "onChain": true
+    },
+    {
+      "name": "REFEREE_TIMEOUT_SECONDS",
+      "value": 604800,
+      "onChain": false
+    }
+  ]
+}

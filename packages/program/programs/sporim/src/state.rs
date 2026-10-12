@@ -49,6 +49,9 @@ pub struct Bet {
     pub claim_outcome: Option<Outcome>,
     pub claim_by: Option<Pubkey>,
     pub claim_window_ends: i64,
+    /// Paid the rent for this account and its vault at `create_bet` — the server's keypair, so
+    /// a person needs USDC and never SOL — and receives it back when the bet closes.
+    pub rent_payer: Pubkey,
 }
 
 impl Bet {

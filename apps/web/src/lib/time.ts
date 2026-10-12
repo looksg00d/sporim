@@ -105,14 +105,53 @@ export function fromDatetimeLocalValue(value: string): number | null {
   return toSeconds(date);
 }
 
-/** "Sun 23:59" — short enough for a receipt row, unambiguous inside a week. */
-export function formatDeadlineShort(seconds: number, locale = 'en-GB'): string {
+export interface DeadlineFormatOptions {
+  /** Defaults to the current time. Decides whether a weekday alone is unambiguous. */
+  readonly nowSeconds?: number;
+  /**
+   * The viewer's zone. Omitted, the runtime's own zone is used — right in a browser, wrong on
+   * a server, whose zone is nobody's. Server pages pass `viewerTimeZone()`.
+   */
+  readonly timeZone?: string;
+  /** Append the zone ("UTC", "GMT+3") — for when the zone is a guess, not the viewer's. */
+  readonly showZone?: boolean;
+  readonly locale?: string;
+}
+
+/** A weekday alone names one day only inside the coming week. */
+const WEEKDAY_HORIZON_SECONDS = 6 * SECONDS_PER_DAY;
+
+/**
+ * "Sun 23:59" inside a week, "8 Oct, 23:59" beyond it — short enough for a receipt row and
+ * never ambiguous. It used to print the weekday for any distance, so a deadline a month out
+ * read as this Friday.
+ */
+export function formatDeadlineShort(
+  seconds: number,
+  { nowSeconds, timeZone, showZone = false, locale = 'en-GB' }: DeadlineFormatOptions = {},
+): string {
+  const now = nowSeconds ?? Math.floor(Date.now() / 1000);
+  const lead = seconds - now;
+  const withinWeek = lead >= 0 && lead < WEEKDAY_HORIZON_SECONDS;
+
   return new Intl.DateTimeFormat(locale, {
-    weekday: 'short',
+    ...(withinWeek ? { weekday: 'short' } : { day: 'numeric', month: 'short' }),
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
+    ...(timeZone ? { timeZone } : {}),
+    ...(showZone ? { timeZoneName: 'short' } : {}),
   }).format(new Date(seconds * 1000));
+}
+
+/** Whether the runtime knows this IANA zone. Guards a zone that arrived in a cookie. */
+export function isValidTimeZone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-GB', { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** "Sun 8 Sep, 23:59" — the full version for the contract sentence and the review screen. */

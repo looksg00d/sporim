@@ -1,0 +1,9 @@
+{
+  "network": "devnet",
+  "programId": "EkfT8PTE7QShwtK6F7NEDgC2M3i4cGnLZhurULPVtDP2",
+  "mint": "2SmKoxP42D8sj4rpiXwxQ1L6s2PswA7XuaLpVw74u6cc",
+  "mintDecimals": 6,
+  "mintAuthority": "GcKAftNYqd6upW6abZRzbY59CCaRB9p69Lh8eNBDVkGb",
+  "treasury": "HsN55AF4EzoAMFbDpvZfz2twVEUMacLw7GwHxaYG8Jvv",
+  "note": "Test mint for devnet (plan decision D3). Not USDC; worthless by design."
+}

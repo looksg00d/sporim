@@ -3,7 +3,8 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use crate::constants::{treasury, BET_SEED};
 use crate::error::ErrorCode;
-use crate::settlement::{calculate_settlement, distribute};
+use crate::rules::{require_allowed, Action, RuleInput};
+use crate::settlement::{calculate_settlement, distribute, close_vault};
 use crate::state::{Bet, BetState};
 
 /// The side that did *not* submit the claim agrees with it. Mirrors `confirmClaim`: the outcome
@@ -18,6 +19,7 @@ pub struct ConfirmClaim<'info> {
         mut,
         seeds = [BET_SEED, bet.bet_id.as_ref()],
         bump = bet.bump,
+        close = rent_payer,
     )]
     pub bet: Account<'info, Bet>,
 
@@ -49,11 +51,18 @@ pub struct ConfirmClaim<'info> {
     )]
     pub treasury_token_account: Account<'info, TokenAccount>,
 
+    /// Receives the rent back as the bet and its vault close.
+    /// CHECK: only ever credited lamports; its address is pinned to the one stored on the bet.
+    #[account(mut, address = bet.rent_payer)]
+    pub rent_payer: UncheckedAccount<'info>,
+
     pub token_program: Program<'info, Token>,
 }
 
 pub fn handle_confirm_claim(ctx: Context<ConfirmClaim>) -> Result<()> {
-    require!(ctx.accounts.bet.state == BetState::Claimed, ErrorCode::InvalidState);
+    let now = Clock::get()?.unix_timestamp;
+    let rule = RuleInput::for_bet(&ctx.accounts.bet, ctx.accounts.signer.key(), now);
+    require_allowed(&rule, Action::ConfirmClaim)?;
     require_keys_eq!(ctx.accounts.bet.mint, ctx.accounts.mint.key(), ErrorCode::WrongMint);
 
     let opponent = ctx.accounts.bet.opponent.ok_or(ErrorCode::InvalidState)?;
@@ -69,12 +78,6 @@ pub fn handle_confirm_claim(ctx: Context<ConfirmClaim>) -> Result<()> {
     );
 
     let claim_outcome = ctx.accounts.bet.claim_outcome.ok_or(ErrorCode::NoClaim)?;
-    let claim_by = ctx.accounts.bet.claim_by.ok_or(ErrorCode::NoClaim)?;
-
-    let signer_key = ctx.accounts.signer.key();
-    let is_party = signer_key == ctx.accounts.bet.creator || signer_key == opponent;
-    require!(is_party, ErrorCode::NotAParty);
-    require_keys_neq!(signer_key, claim_by, ErrorCode::ClaimantCannotConfirm);
 
     let settlement = calculate_settlement(
         ctx.accounts.bet.stake_creator,
@@ -108,5 +111,17 @@ pub fn handle_confirm_claim(ctx: Context<ConfirmClaim>) -> Result<()> {
         opponent_ata,
         treasury_ata,
         settlement,
+    )?;
+
+    close_vault(
+        ctx.accounts.bet.bet_id,
+        ctx.accounts.bet.bump,
+        ctx.accounts.mint.decimals,
+        ctx.accounts.token_program.key(),
+        ctx.accounts.mint.to_account_info(),
+        ctx.accounts.vault.to_account_info(),
+        ctx.accounts.bet.to_account_info(),
+        ctx.accounts.creator_token_account.to_account_info(),
+        ctx.accounts.rent_payer.to_account_info(),
     )
 }

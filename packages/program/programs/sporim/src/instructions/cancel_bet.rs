@@ -3,6 +3,8 @@ use anchor_spl::token::{transfer_checked, Mint, Token, TokenAccount, TransferChe
 
 use crate::constants::BET_SEED;
 use crate::error::ErrorCode;
+use crate::rules::{require_allowed, Action, RuleInput};
+use crate::settlement::close_vault;
 use crate::state::{Bet, BetState};
 
 /// The creator changes their mind before anyone accepts. No fee — cancelling costs nothing,
@@ -16,6 +18,7 @@ pub struct CancelBet<'info> {
         mut,
         seeds = [BET_SEED, bet.bet_id.as_ref()],
         bump = bet.bump,
+        close = rent_payer,
     )]
     pub bet: Account<'info, Bet>,
 
@@ -35,16 +38,18 @@ pub struct CancelBet<'info> {
     )]
     pub creator_token_account: Account<'info, TokenAccount>,
 
+    /// Receives the rent back as the bet and its vault close.
+    /// CHECK: only ever credited lamports; its address is pinned to the one stored on the bet.
+    #[account(mut, address = bet.rent_payer)]
+    pub rent_payer: UncheckedAccount<'info>,
+
     pub token_program: Program<'info, Token>,
 }
 
 pub fn handle_cancel_bet(ctx: Context<CancelBet>) -> Result<()> {
-    require!(ctx.accounts.bet.state == BetState::Open, ErrorCode::InvalidState);
-    require_keys_eq!(
-        ctx.accounts.creator.key(),
-        ctx.accounts.bet.creator,
-        ErrorCode::OnlyCreatorCancels
-    );
+    let now = Clock::get()?.unix_timestamp;
+    let rule = RuleInput::for_bet(&ctx.accounts.bet, ctx.accounts.creator.key(), now);
+    require_allowed(&rule, Action::Cancel)?;
     require_keys_eq!(ctx.accounts.bet.mint, ctx.accounts.mint.key(), ErrorCode::WrongMint);
 
     let stake_creator = ctx.accounts.bet.stake_creator;
@@ -71,5 +76,15 @@ pub fn handle_cancel_bet(ctx: Context<CancelBet>) -> Result<()> {
     let cpi_ctx = CpiContext::new_with_signer(token_program_id, cpi_accounts, signer_seeds);
     transfer_checked(cpi_ctx, stake_creator, decimals)?;
 
-    Ok(())
+    close_vault(
+        ctx.accounts.bet.bet_id,
+        ctx.accounts.bet.bump,
+        ctx.accounts.mint.decimals,
+        ctx.accounts.token_program.key(),
+        ctx.accounts.mint.to_account_info(),
+        ctx.accounts.vault.to_account_info(),
+        ctx.accounts.bet.to_account_info(),
+        ctx.accounts.creator_token_account.to_account_info(),
+        ctx.accounts.rent_payer.to_account_info(),
+    )
 }
