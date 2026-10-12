@@ -1,5 +1,22 @@
 # moneydeal — споры между друзьями с деньгами в эскроу на Solana
 
+> **For Colosseum judges (English)**
+>
+> **SPORIM** — friendly bets between friends with the stakes held in a Solana escrow. Two friends agree on terms in a chat,
+> both lock USDC into a program-owned vault, and the winner takes the pot. Every state has an exit: a disagreement refunds
+> both sides, an abandoned bet refunds to anyone who calls it after the deadline.
+>
+> - **Live web app:** <https://sporim.fun> (Next.js 15; create a bet, share a link, the friend accepts)
+> - **Anchor program (devnet):** [`EkfT8PTE7QShwtK6F7NEDgC2M3i4cGnLZhurULPVtDP2`](https://explorer.solana.com/address/EkfT8PTE7QShwtK6F7NEDgC2M3i4cGnLZhurULPVtDP2?cluster=devnet)
+>   — `packages/program/programs/sporim/src`: `create_bet`, `accept_bet`, `cancel_bet`, `submit_claim`, `confirm_claim`,
+>   `dispute_claim`, `settle_uncontested`, `expire_unaccepted`, `refund_expired`
+> - **TS client:** `packages/chain` — generated from the IDL, with a real devnet round-trip test
+> - **Domain logic:** `packages/domain` — money, fees, bet state machine, schemas (unit-tested, framework-free)
+> - **Status:** the program and client run on devnet; the web app still settles through a mock wallet — wiring it to the
+>   program is the next step. Single-mint (USDC), 1v1, no referee on-chain yet.
+>
+> Run: `pnpm install && pnpm check` · program: `bash packages/program/scripts/test.sh` (Linux/WSL)
+
 **Поспорили в чате → оба положили USDC в эскроу → выигравший забрал банк.**
 
 Началось с рила <https://www.instagram.com/reel/DcuCrIRxSOk/> (промо **Forfeit** — ставка на привычку),
