@@ -35,11 +35,11 @@
 | `docs/08-friend-bets-prior-art.md`                                                    | WagerLab, Betcha, MNEEBet, Settld, Stakely, bet2fun, ParkTheBus — модели резолюции, юр-ландшафт                                 |
 | `docs/09-phase0-plan.md`                                                              | **План реализации:** PRD с AC по экранам, монорепо, `ChainAdapter`, дизайн Anchor-программы, 60 задач M0–M5, риски, 5 вопросов  |
 | `docs/11-coming-back.md`                                                              | **Возврат пользователя:** экран `/me`, личность до логина, `.ics` + письма вместо push, кто закрывает таймауты, события воронки |
-| `DESIGN.md`                                                                           | **Дизайн-система** (формат getdesign / Google DESIGN.md) — токены, типографика, компоненты, правила. Читать перед любым UI      |
+| `docs/DESIGN.md`                                                                      | **Дизайн-система** (формат getdesign / Google DESIGN.md) — токены, типографика, компоненты, правила. Читать перед любым UI      |
 | [Design canvas](https://claude.ai/code/artifact/f12d16ad-03f0-45eb-8de9-3b523a29efbc) | 3 направления стиля (A Receipt · **B Acid Arena** · C Trash Talk), лендинг + 2 экрана                                           |
 | `tools/fetch-fonts.py`                                                                | Скачивает Unbounded / IBM Plex Mono в `apps/web/public/fonts` и генерит `fonts.css`                                             |
 | `packages/domain`                                                                     | Логика без фреймворка: деньги, комиссия, стейт-машина, схемы, копирайт. 214 тестов                                              |
-| `packages/ui`                                                                         | Дизайн-система по `DESIGN.md` — инлайн-стили из токенов, чтобы те же компоненты рендерил satori                                 |
+| `packages/ui`                                                                         | Дизайн-система по `docs/DESIGN.md` — инлайн-стили из токенов, чтобы те же компоненты рендерил satori                            |
 | `apps/web`                                                                            | Next.js 15 App Router — единственная поверхность Phase 0                                                                        |
 
 ## Статус
@@ -49,7 +49,7 @@
 - [x] 240/242 комментов с лайками собраны и кластеризованы (`docs/06`)
 - [x] Пивот на «споры между друзьями», решения приняты: Solana · обязательства-first · взаимно + судья · web-first · 1v1
 - [x] Planner → PRD → архитектура программы → task list (Phase 0) — `docs/09`
-- [x] **M0 каркас:** монорепо, `packages/domain` (214 тестов), `packages/ui` по `DESIGN.md`,
+- [x] **M0 каркас:** монорепо, `packages/domain` (214 тестов), `packages/ui` по `docs/DESIGN.md`,
       `apps/web` (Next 15 + self-hosted шрифты + `lib/env.ts`), CI, Playwright.
       `pnpm check` зелёный: 259 unit + 7 e2e
 - [x] База: **Xata (обычный Postgres)** вместо Supabase — подключение проверено, схемы ещё нет

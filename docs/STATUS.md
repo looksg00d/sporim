@@ -1,9 +1,9 @@
 # Статус
 
 Одна страница: что готово, что делается, что дальше, что ждёт тебя.
-Обновляется по ходу. Почему принято то или иное решение — в [`docs/DECISIONS.md`](docs/DECISIONS.md).
+Обновляется по ходу. Почему принято то или иное решение — в [`docs/DECISIONS.md`](DECISIONS.md).
 
-**Начинаешь новую сессию — открой** [`docs/NEXT-SESSION.md`](docs/NEXT-SESSION.md).
+**Начинаешь новую сессию — открой** [`docs/NEXT-SESSION.md`](NEXT-SESSION.md).
 
 **Проверка целиком:** `pnpm check` (typecheck + lint + unit) · `pnpm --filter @sporim/web test:e2e`
 **Сейчас зелёное:** 508 unit + 84 интеграционных (22 сентября, против локального Postgres
@@ -129,7 +129,7 @@ pnpm --filter @sporim/web exec vitest run
   расширений, так что на главном экране трафика кнопке «подключить Phantom» подключать нечего.
   Выход — открыть наш сайт внутри браузера Фантома. Точный формат ссылки проверить в живых
   доках, а поведение возврата — руками на телефоне: документацией оно не описано.
-  Подробности в [`docs/NEXT-SESSION.md`](docs/NEXT-SESSION.md).
+  Подробности в [`docs/NEXT-SESSION.md`](NEXT-SESSION.md).
   **Сначала 5 минут на iPhone:** черновик переживает вход только через `localStorage` того же
   браузера (`features/draft/handoff.ts`), а у браузера Phantom хранилище своё. Отправь себе в
   Instagram ссылку `sporim.fun/new`, дойди в ней до третьего шага, потом открой из того же
@@ -371,14 +371,14 @@ pnpm --filter @sporim/web exec vitest run
 
 ## Ресёрч
 
-- `[NEXT для тебя]` [`docs/RESEARCH-BRIEF-2.md`](docs/RESEARCH-BRIEF-2.md) — второй заход.
+- `[NEXT для тебя]` [`docs/RESEARCH-BRIEF-2.md`](RESEARCH-BRIEF-2.md) — второй заход.
   Главный вопрос в нём не про эскроу: **как человек с инстаграма получает $25 в USDC.**
   Если честного ответа быстрее пяти минут нет, это меняет продукт сильнее, чем всё
   остальное вместе.
 
 ## Первый ресёрч — вернулся, разобран
 
-- `[DONE]` [`docs/RESEARCH-BRIEF.md`](docs/RESEARCH-BRIEF.md) отработан снаружи: 9 разделов,
+- `[DONE]` [`docs/RESEARCH-BRIEF.md`](RESEARCH-BRIEF.md) отработан снаружи: 9 разделов,
   100 фактов с цитатами, 361 архивированная страница. Выводы — в `docs/DECISIONS.md`.
 - `[DONE]` **Freeze authority USDC проверен на mainnet** — не null, 2-of-4 multisig,
   минт на классическом SPL Token, `decimals: 6`. Ресёрч это не смог, закрыто вручную.
