@@ -11,8 +11,8 @@ use crate::state::{Bet, BetState};
 /// slice — that refunds both stakes on the spot, no fee (`docs/DECISIONS.md`, 2026-09-17).
 ///
 /// This is also what takes the money motive out of a stranger grabbing an open bet by its link
-/// and claiming a win: the creator disagrees and both walk away whole (DECISIONS, "Подпись
-/// сервера при приёме ставки — не делаем"). A referee path, when it comes, branches here.
+/// and claiming a win: the creator disagrees and both walk away whole (DECISIONS, the entry
+/// on not adding a server signature when a bet is accepted). A referee path, when it comes, branches here.
 #[derive(Accounts)]
 pub struct DisputeClaim<'info> {
     pub signer: Signer<'info>,
